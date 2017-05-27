@@ -3,19 +3,12 @@ ft245_status: equ 9
 bell: equ 6
 
 start:
-    ld a,0
-    halt
-    org 20
-newstart:
-    or a
-    ld a,$12
-    nop
-    nop
-    nop
-breakhere:
-    ld a,$13
-    nop
-    jp newstart
+    ld hl,boot_msg
+    call write_line
+loop:
+    call read_line
+    ld hl,line
+    jp loop
 
 ; wait for output buffer to be not-full and write char in A to it
 write_char:
@@ -153,7 +146,7 @@ found_jump:
 .endm
 
 cmd_help:
-    ld de,help_msg
+    ld hl,help_msg
     jp write_line
 help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\r\n', 0
 
@@ -170,7 +163,7 @@ cmd_reg:
 cmd_load:
 cmd_save:
 cmd_romwrite:
-    ld de,not_implemented_msg
+    ld hl,not_implemented_msg
     jp write_line
 not_implemented_msg: db 'Not implemented yet\r\n', 0
 
