@@ -1,0 +1,211 @@
+ft245: equ 8
+ft245_status: equ 9
+bell: equ 6
+
+start:
+    ld a,0
+    halt
+    org 20
+newstart:
+    or a
+    ld a,$12
+    nop
+    nop
+    nop
+breakhere:
+    ld a,$13
+    nop
+    jp newstart
+
+; wait for output buffer to be not-full and write char in A to it
+write_char:
+    push af
+write_char1:
+    in a,(ft245_status)
+    bit 1,a
+    jp nz,write_char1
+    pop af
+    out (ft245),a
+    ret
+
+write_line:
+    ld a,(hl)
+    cp 0
+    ret z
+    call write_char
+    inc hl
+    jp write_line
+
+read_line:
+    ld b,0ffh
+    ld hl,line
+read_line_char:
+    call read_char
+    cp 13 ; return
+    jp nz,check_bs
+    call write_char
+    ld (hl),0
+    inc hl
+    ret
+check_bs:
+    cp 8 ; backspace
+    jp z,got_backspace
+    push af
+    ld a,0
+    cp b
+    jp z,read_line_sound_bell
+    pop af
+    call write_char
+    dec b
+    ld (hl),a
+    inc hl
+    jp read_line_char
+got_backspace:
+    push af
+    ld a,0ffh
+    cp b
+    jp z,read_line_sound_bell
+    pop af
+    call write_char
+    inc b
+    dec hl
+    jp read_line_char
+read_line_sound_bell:
+    pop af
+    call sound_bell
+    jp read_line_char
+
+sound_bell:
+    push bc
+    ld bc,$FF10
+    ld a,$FF
+    out (bell),a
+sound_bell1:
+    djnz sound_bell1        
+    dec c
+    jp nz,sound_bell1
+    ld a,$00
+    out (bell),a
+    pop bc
+    ret
+
+; wait for a character to be available, and return it in A
+read_char:
+    ; don't really need to wait for char, but it's kind of
+    ; nice for this to be non-blocking
+    in a,(ft245_status)
+    bit 0,a
+    jp nz,read_char
+    in a,(ft245)
+    ret
+
+line: ds 256
+
+; pass in hl pointing to the string to find
+lookup_command:
+    ld de,commands
+compare_next_word:
+    push hl
+compare_next_letter:
+    ld a,(de)
+    cp (hl)
+    jp nz,different
+    inc de
+    inc hl
+    jp compare_next_letter
+different:
+    ; could be end of table, check
+    bit 7,a
+    jp z,find_next_word
+    ld a,' '
+    cp (hl)
+    jp z,load_addr
+    xor a ; ld a,0
+    cp (hl)
+    jp nz,find_next_word
+load_addr:
+    ld h,d
+    ld l,e
+    ld d,(hl)
+    inc hl
+    ld e,(hl)
+    res 7,d
+    pop hl
+    ret ; return jump address in de
+find_next_word:
+    inc de
+    ld a,(de)
+    bit 7,a
+    jp z,find_next_word
+found_jump:
+    inc de
+    inc de
+    ld a,(de) ; check if next word is actually the error jump
+    bit 7,a
+    jp nz,load_addr
+    pop hl
+    jp compare_next_word
+
+; store an address with MSB first, with bit 7 set to 1
+.macro djump
+    db (%%1 / $100) + $80
+    db %%1 & $ff
+.endm
+
+cmd_help:
+    ld de,help_msg
+    jp write_line
+help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\r\n', 0
+
+cmd_peek:
+cmd_poke:
+cmd_dump:
+cmd_in:
+cmd_out:
+cmd_jp:
+cmd_call:
+cmd_time:
+cmd_settime:
+cmd_reg:
+cmd_load:
+cmd_save:
+cmd_romwrite:
+    ld de,not_implemented_msg
+    jp write_line
+not_implemented_msg: db 'Not implemented yet\r\n', 0
+
+cmd_error:
+    ret
+
+commands:
+    db 'HELP'
+    djump cmd_help
+    db 'PEEK'
+    djump cmd_peek
+    db 'POKE'
+    djump cmd_poke
+    db 'DUMP'
+    djump cmd_dump
+    db 'IN'
+    djump cmd_in
+    db 'OUT'
+    djump cmd_out
+    db 'JP'
+    djump cmd_jp
+    db 'CALL'
+    djump cmd_call
+    db 'TIME'
+    djump cmd_time
+    db 'SETTIME'
+    djump cmd_settime
+    db 'REG'
+    djump cmd_reg
+    db 'LOAD'
+    djump cmd_load
+    db 'SAVE'
+    djump cmd_save
+    db 'ROMWRITE'
+    djump cmd_romwrite
+    djump cmd_error
+
+end:

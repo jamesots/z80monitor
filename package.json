@@ -1,0 +1,18 @@
+{
+  "name": "z80monitor",
+  "version": "0.1.0",
+  "description": "Monitor programme for my Z80 computer",
+  "main": "index.js",
+  "scripts": {
+    "test": "jasmine-ts 'spec/**/*.spec.ts'"
+  },
+  "author": "James Ots <code@jamesots.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jasmine": "^2.5.47",
+    "jasmine": "^2.6.0",
+    "jasmine-ts": "^0.1.2",
+    "typescript": "^2.3.3",
+    "zat": "^0.1.2"
+  }
+}
