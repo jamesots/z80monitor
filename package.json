@@ -4,7 +4,9 @@
   "description": "Monitor programme for my Z80 computer",
   "main": "index.js",
   "scripts": {
-    "test": "jasmine-ts 'spec/**/*.spec.ts'"
+    "test": "jasmine-ts 'spec/**/*.spec.ts'",
+    "preasm": "zsm80 src/z80monitor.z80 -t bin -o z80monitor.bin",
+    "asm": "zsm80 src/bootstrap.z80 -t bin -o bootstrap.bin" 
   },
   "author": "James Ots <code@jamesots.com>",
   "license": "MIT",
@@ -13,6 +15,6 @@
     "jasmine": "^2.6.0",
     "jasmine-ts": "^0.1.2",
     "typescript": "^2.3.3",
-    "zat": "^0.1.4"
+    "zat": "^0.1.5"
   }
 }

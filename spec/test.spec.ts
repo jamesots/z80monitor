@@ -212,15 +212,29 @@ start:
     it('should fail to find incomplete string', function() {
         zat.loadProg(prog);
 
-        // zat.onStep = (pc) => {
-        //     console.log(`${zat.formatBriefRegisters()} ${zat.getSymbol(pc)}`);
-        //     return false;
-        // }
         zat.load('HELPER\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_error'));
-        // zat.dumpMemory(0, 0x300);
     });
+
+    it('should loop', function() {
+        zat.loadProg(prog);
+
+        let called = false;
+        zat.onStep = new StepMock(zat)
+        .setFakeCall('read_line', () => {
+            zat.load('HELP\0', 'line');
+        })
+        .setFakeCall('call_hl', () => {
+            called = true;
+            expect(zat.z80.hl).toBe(zat.getAddress('cmd_help'));
+        })
+        .setBreakpoint('end_loop')
+        .mock();
+        zat.call('loop', {steps: 200});
+
+        expect(called).toBe(true);
+    })
 });

@@ -8,6 +8,7 @@ chr_bs: equ 8
 bell_on: equ $ff
 bell_off: equ 0
 
+.phase 0
 start:
     ld hl,boot_msg
     call write_line
@@ -16,8 +17,15 @@ loop:
     call write_char
     call read_line
     ld hl,line
-    call write_line
+    call lookup_command
+    ld h,d
+    ld l,e
+    call call_hl
+end_loop:
     jp loop
+
+call_hl:
+    jp (hl)
 
 boot_msg: db 'Z80 Monitor\r\n', 0
 
@@ -212,3 +220,4 @@ commands:
     djump cmd_error
 
 end:
+.dephase

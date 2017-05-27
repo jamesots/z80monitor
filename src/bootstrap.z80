@@ -1,0 +1,62 @@
+bank0:  equ 0
+bank1:  equ 1
+bank2:  equ 2
+bank3:  equ 3
+pbell:   equ 6
+ftdi_data: equ 8
+ftdi_status: equ 9
+
+ftdi:   equ $FF
+
+
+org $0000
+start:  
+        ; initialize the memory banks
+        jp $c000
+        ld a,$00 ; RAM
+        out (bank0),a
+        ld a,$01 ; RAM
+        out (bank1),a
+        ld a,$02 ; RAM
+        out (bank2),a
+
+        ; load LDIR, JP 0000 into actual memory
+        ld hl,$8000
+        ld (hl),$ed ; ldir - copy the programme from the FT245R into memory
+        inc hl
+        ld (hl),$b0
+        inc hl
+
+        ld (hl),$3e ; ld a,$03 - load RAM into bank 3
+        inc (hl)
+        ld (hl),$03
+        inc (hl)
+        ld (hl),$d3 ; out (bank3),a
+        inc hl
+        ld (hl),$03
+        inc hl
+
+        ld (hl),$c3 ; jp 0000 - jump to the programme
+        inc hl
+        ld (hl),$00
+        inc hl
+        ld (hl),$00
+        
+        ; set up the LDIR's parameters
+        ld de,$0000
+        ld hl,$c000 ; this address is not important, but must be $8000 or greater
+                    ; it'll just be reading successive bytes from the FT245R
+        ld bc,endapp-app
+        
+        ; jump to the LDIR instruction
+        jp $8000
+
+
+; actual app goes here
+app:
+
+.incbin z80monitor.bin
+
+
+endapp:
+    nop
