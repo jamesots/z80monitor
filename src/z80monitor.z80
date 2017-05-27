@@ -16,6 +16,7 @@ loop:
     call write_char
     call read_line
     ld hl,line
+    call write_line
     jp loop
 
 boot_msg: db 'Z80 Monitor\r\n', 0

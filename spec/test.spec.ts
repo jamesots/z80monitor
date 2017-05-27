@@ -13,6 +13,7 @@ describe('z80monitor', function() {
         jasmine.addMatchers(customMatchers as any);
 
         zat = new Zat();
+        zat.defaultCallSp = 0xFF00;
     });
 
     it('should write a line', function() {
@@ -33,7 +34,7 @@ describe('z80monitor', function() {
         zat.onIoWrite = ioSpy.writeSpy();
         zat.onIoRead = ioSpy.readSpy();
         zat.z80.hl = 0x5000;
-        zat.call('write_line', 0xFF00);
+        zat.call('write_line');
         expect(ioSpy).toBeComplete();
     });
 
@@ -42,7 +43,7 @@ describe('z80monitor', function() {
 
         let ioSpy = new IoSpy(zat).onIn([9, '\xff\xff\0'], [8, 65]);
         zat.onIoRead = ioSpy.readSpy();
-        zat.call('read_char', 0xFF00);
+        zat.call('read_char');
         expect(zat.z80.a).toEqual(65);
         expect(ioSpy).toBeComplete();
     });
@@ -61,7 +62,7 @@ describe('z80monitor', function() {
         zat.onIoWrite = (port, value) => {
             values.push([port & 0xff, value]);
         }
-        zat.call('sound_bell', 0xFF00);
+        zat.call('sound_bell');
         expect(values).toEqual([[6, 0xff], [6, 0]]);
         expect(count).toEqual(0x100 * 0x10);
     });
@@ -92,7 +93,7 @@ start:
             .onOut(1, 2)
         zat.onIoRead = ioSpy.readSpy();
         zat.onIoWrite = ioSpy.writeSpy();
-        zat.call('start', 0xFF00);
+        zat.call('start');
         expect(ioSpy).toBeComplete();
     });
 
@@ -117,7 +118,7 @@ start:
             return readSpy(port);
         }
         zat.onIoWrite = writeSpy;
-        zat.call('read_line', 0xFF00);
+        zat.call('read_line');
         expect(zat.getMemory('line', 6)).toEqual(stringToBytes('hello\0'));
     });
 
@@ -134,7 +135,7 @@ start:
 
         zat.onIoRead = ioSpy.readSpy();
         zat.onIoWrite = ioSpy.writeSpy();
-        zat.call('read_line', 0xFF00);
+        zat.call('read_line');
         expect(zat.getMemory('line', 2)).toEqual(stringToBytes('h\0'));
     });
 
@@ -143,7 +144,7 @@ start:
 
         zat.load('HELP\0', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_help'));
     });
@@ -153,7 +154,7 @@ start:
 
         zat.load('PEEK\0', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_peek'));
     });
@@ -163,7 +164,7 @@ start:
 
         zat.load('PEEK ', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_peek'));
     });
@@ -173,7 +174,7 @@ start:
 
         zat.load('WIBBLE\0', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_error'));
     });
@@ -183,7 +184,7 @@ start:
 
         zat.load('HEL ', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_error'));
     });
@@ -193,7 +194,7 @@ start:
 
         zat.load('HELP! ', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_helpling'));
     });
@@ -203,7 +204,7 @@ start:
 
         zat.load(' ', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_error'));
     });
@@ -217,7 +218,7 @@ start:
         // }
         zat.load('HELPER\0', 'line');
         zat.z80.hl = zat.getAddress('line');
-        zat.call('lookup_command', 0xFF00);
+        zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_error'));
         // zat.dumpMemory(0, 0x300);
