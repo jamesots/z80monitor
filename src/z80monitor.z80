@@ -6,9 +6,13 @@ start:
     ld hl,boot_msg
     call write_line
 loop:
+    ld a, '!'
+    call write_char
     call read_line
     ld hl,line
     jp loop
+
+boot_msg: db 'Z80 Monitor\r\n', 0
 
 ; wait for output buffer to be not-full and write char in A to it
 write_char:
@@ -96,48 +100,47 @@ line: ds 256
 
 ; pass in hl pointing to the string to find
 lookup_command:
-    ld de,commands
+    ld de,commands              ; load the start of the command table
 compare_next_word:
-    push hl
+    push hl                     ; store the address of the line we are matching
 compare_next_letter:
-    ld a,(de)
-    cp (hl)
+    ld a,(de)                   ; get next letter
+    cp (hl)                     ; compare it with letter in command table
     jp nz,different
-    inc de
+    inc de                      ; if they matched, move onto the next letter
     inc hl
     jp compare_next_letter
-different:
-    ; could be end of table, check
-    bit 7,a
-    jp z,find_next_word
-    ld a,' '
-    cp (hl)
+different:                      ; letters weren't the same, but after each command string
+    bit 7,a                     ; there's a jump address with the high order bit set.
+    jp z,find_jump              ; if it's not set, look for the next command
+    ld a,' '                    ; now check we've found the end of the string
+    cp (hl)                     ; look for a space first
     jp z,load_addr
-    xor a ; ld a,0
+    xor a ; ld a,0              ; then look for a null
     cp (hl)
-    jp nz,find_next_word
+    jp nz,found_jump            ; if the word wasn't found, skip to the next command
 load_addr:
-    ld h,d
+    ld h,d                      ; load the address - MSB first
     ld l,e
     ld d,(hl)
     inc hl
     ld e,(hl)
-    res 7,d
-    pop hl
-    ret ; return jump address in de
-find_next_word:
-    inc de
-    ld a,(de)
+    res 7,d                     ; reset the high order byte
+    pop hl                      ; clear up the stack
+    ret                         ; return with the command's jump address in de
+find_jump:
+    inc de                      ; skip through this command until we find the terminating
+    ld a,(de)                   ; jump address
     bit 7,a
-    jp z,find_next_word
+    jp z,find_jump
 found_jump:
+    inc de                      ; skip over the jump address
     inc de
-    inc de
-    ld a,(de) ; check if next word is actually the error jump
-    bit 7,a
-    jp nz,load_addr
-    pop hl
-    jp compare_next_word
+    ld a,(de)                   ; check if next word is another jump
+    bit 7,a                     ; if it is, we're at the end of the jump table
+    jp nz,load_addr             ; load that address and use it.
+    pop hl                      ; otherwise restore the original string's address
+    jp compare_next_word        ; and try again
 
 ; store an address with MSB first, with bit 7 set to 1
 .macro djump
@@ -146,6 +149,7 @@ found_jump:
 .endm
 
 cmd_help:
+cmd_helpling:
     ld hl,help_msg
     jp write_line
 help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\r\n', 0
@@ -173,6 +177,8 @@ cmd_error:
 commands:
     db 'HELP'
     djump cmd_help
+    db 'HELP!'
+    djump cmd_helpling
     db 'PEEK'
     djump cmd_peek
     db 'POKE'

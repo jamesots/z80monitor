@@ -188,6 +188,16 @@ start:
         expect(zat.z80.de).toBe(zat.getAddress('cmd_error'));
     });
 
+    it('should fail to string which almost matches first string', function() {
+        zat.loadProg(prog);
+
+        zat.load('HELP! ', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('lookup_command', 0xFF00);
+
+        expect(zat.z80.de).toBe(zat.getAddress('cmd_helpling'));
+    });
+
     it('should fail to find no string', function() {
         zat.loadProg(prog);
 
