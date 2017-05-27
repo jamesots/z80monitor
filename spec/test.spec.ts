@@ -63,7 +63,7 @@ describe('z80monitor', function() {
         }
         zat.call('sound_bell', 0xFF00);
         expect(values).toEqual([[6, 0xff], [6, 0]]);
-        expect(count).toEqual(0x100 * 0x10 - 1);
+        expect(count).toEqual(0x100 * 0x10);
     });
 
     it('should read and write', function() {

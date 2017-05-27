@@ -2,6 +2,12 @@ ft245: equ 8
 ft245_status: equ 9
 bell: equ 6
 
+chr_cr: equ 13
+chr_bs: equ 8
+
+bell_on: equ $ff
+bell_off: equ 0
+
 start:
     ld hl,boot_msg
     call write_line
@@ -34,55 +40,52 @@ write_line:
     jp write_line
 
 read_line:
-    ld b,0ffh
-    ld hl,line
+    ld b,0ffh                   ; b is max line length
+    ld hl,line                  ; hl is where the line will be stored
 read_line_char:
     call read_char
-    cp 13 ; return
-    jp nz,check_bs
-    call write_char
-    ld (hl),0
-    inc hl
+    cp chr_cr                   
+    jp nz,check_bs              ; if key wasn't return, check if it was backspace
+    call write_char             ; echo the return just typed
+    ld (hl),0                   ; store a terminating zero
     ret
 check_bs:
-    cp 8 ; backspace
-    jp z,got_backspace
-    push af
-    ld a,0
-    cp b
-    jp z,read_line_sound_bell
-    pop af
-    call write_char
-    dec b
-    ld (hl),a
+    cp chr_bs
+    jp z,got_backspace          ; if they pressed backspace go and handle it
+    push af                     ; save a
+    xor a ; ld a,0
+    cp b                        ; if b is 0, the line buffer is full...
+    jp z,read_line_sound_bell   ; so sound the bell
+    pop af                      ; restore a
+    call write_char             ; echo the typed character
+    dec b                       ; decrement the remaining bytes available in buffer
+    ld (hl),a                   ; store the typed character
     inc hl
-    jp read_line_char
+    jp read_line_char           ; read another character
 got_backspace:
-    push af
-    ld a,0ffh
+    ld a,0ffh                   ; see if line buffer is empty...
     cp b
-    jp z,read_line_sound_bell
-    pop af
-    call write_char
-    inc b
-    dec hl
-    jp read_line_char
+    jp z,read_line_sound_bell   ; ...and sound bell if it is
+    ld a,chr_bs
+    call write_char             ; echo the backspace
+    inc b                       ; increment the remaining bytes available in buffer
+    dec hl                      ; move line storage pointer back one
+    jp read_line_char           ; read another character
 read_line_sound_bell:
-    pop af
     call sound_bell
     jp read_line_char
 
 sound_bell:
-    push bc
-    ld bc,$FF10
-    ld a,$FF
-    out (bell),a
+    push bc                     ; set up loop variables
+    ld bc,$0010
+    ld a,bell_on
+    out (bell),a                ; turn the bell on
 sound_bell1:
-    djnz sound_bell1        
+    djnz sound_bell1            ; do the b loop
     dec c
-    jp nz,sound_bell1
-    ld a,$00
-    out (bell),a
+    jp nz,sound_bell1           ; do the c loop
+    ld a,bell_off
+    out (bell),a                ; turn the bell off
     pop bc
     ret
 
