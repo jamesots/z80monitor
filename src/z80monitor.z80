@@ -187,7 +187,7 @@ rtc_year: equ $26
 rtc_century: equ $27
 
 ; A = 2 digit number in BCD
-; HL = address of place to store number
+; returns HL = address of place to store number
 bcd_to_num:
     push af
     and 0f0h
@@ -203,6 +203,35 @@ bcd_to_num:
     add a,030h
     ld (hl),a
     ret
+
+; HL = address of 2 digit number string
+; returns A = BCD number
+;         E = 0 - no error; 1 - error
+num_to_bcd:
+.block
+    ld a,(hl)
+    ld e,0
+    sub $30
+    jp c,error
+    cp $0A
+    jp nc,error
+    sla a
+    sla a
+    sla a
+    sla a
+    ld b,a
+    inc hl
+    ld a,(hl)
+    sub $30
+    jp c,error
+    cp $0A
+    jp nc,error
+    add a,b
+    ret
+error:
+    ld e,1
+    ret
+.endblock
 
 print_time:
     ld a,001000000b ; TE=0, CS=1 (12.5pF crystal)
@@ -274,7 +303,13 @@ help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIM
 cmd_time:
     call print_time
     jp print_date
-    
+
+cmd_settime:
+    ; skip spaces
+    ; expect time in format HH:MM:SS
+    ; give up if it doesn't match
+    ; ignore trailing rubbish, for now
+
 cmd_peek:
 cmd_poke:
 cmd_dump:
@@ -282,7 +317,6 @@ cmd_in:
 cmd_out:
 cmd_jp:
 cmd_call:
-cmd_settime:
 cmd_setdate:
 cmd_reg:
 cmd_load:

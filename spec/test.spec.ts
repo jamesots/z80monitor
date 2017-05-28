@@ -276,4 +276,66 @@ start:
         expect(zat.z80.de).toBe(zat.getAddress('cmd_peek'));
     });
 
+    it('should convert bcd to number string', function() {
+        zat.loadProg(prog);
+
+        zat.z80.a = 0x45;
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('bcd_to_num');
+
+        expect(zat.getMemory('line', 2)).toEqual(stringToBytes('45'));
+    });
+
+    it('should convert string to bcd', function() {
+        zat.loadProg(prog);
+
+        zat.load('45', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.a).toBe(0x45);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('00', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.a).toBe(0x00);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('99', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.a).toBe(0x99);
+        expect(zat.z80.e).toBe(0);
+    });
+
+    it('should fail to convert string to bcd', function() {
+        zat.loadProg(prog);
+
+        zat.load('/5', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.e).toBe(1);
+
+        zat.load(':5', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.e).toBe(1);
+
+        zat.load('5/', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.e).toBe(1);
+
+        zat.load('5:', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('num_to_bcd');
+
+        expect(zat.z80.e).toBe(1);
+    })
 });
