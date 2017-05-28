@@ -147,6 +147,7 @@ start:
         zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_help'));
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 'HELP'.length);
     });
 
     it('should find second string', function() {
@@ -157,6 +158,7 @@ start:
         zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_peek'));
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 'PEEK'.length);
     });
 
     it('should find second string, terminated by space', function() {
@@ -167,6 +169,7 @@ start:
         zat.call('lookup_command');
 
         expect(zat.z80.de).toBe(zat.getAddress('cmd_peek'));
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 'PEEK'.length);
     });
 
     it('should fail to find string', function() {
@@ -295,6 +298,8 @@ start:
 
         expect(zat.z80.a).toBe(0x45);
         expect(zat.z80.e).toBe(0);
+        expect(zat.z80.d).toBe(45);
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 2);
 
         zat.load('00', 'line');
         zat.z80.hl = zat.getAddress('line');
@@ -302,6 +307,8 @@ start:
 
         expect(zat.z80.a).toBe(0x00);
         expect(zat.z80.e).toBe(0);
+        expect(zat.z80.d).toBe(0);
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 2);
 
         zat.load('99', 'line');
         zat.z80.hl = zat.getAddress('line');
@@ -309,6 +316,8 @@ start:
 
         expect(zat.z80.a).toBe(0x99);
         expect(zat.z80.e).toBe(0);
+        expect(zat.z80.d).toBe(99);
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 2);
     });
 
     it('should fail to convert string to bcd', function() {
@@ -337,5 +346,87 @@ start:
         zat.call('num_to_bcd');
 
         expect(zat.z80.e).toBe(1);
-    })
+    });
+
+    it('should skip spaces', function() {
+        zat.loadProg(prog);
+
+        zat.load('BOB', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('skip_spaces');
+
+        expect(zat.z80.c).toBe(0);
+        expect(zat.z80.hl).toBe(zat.getAddress('line'));
+
+        zat.load(' BOB', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('skip_spaces');
+
+        expect(zat.z80.c).toBe(1);
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 1);
+    });
+
+    it('should parse time', function() {
+        zat.loadProg(prog);
+
+        var writeLineCalled = false;
+        zat.onStep = new StepMock(zat)
+            .setOnStep('write_line', () => {
+                writeLineCalled = true;
+            })
+            // .setLogger()
+            .mock();
+
+        zat.load('00:00:00', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(false);
+        expect(zat.getMemory('bcd_time', 3)).toEqual([0x00, 0x00, 0x00]);
+
+        writeLineCalled = false;
+        zat.load('00:00:59', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(false);
+        expect(zat.getMemory('bcd_time', 3)).toEqual([0x00, 0x00, 0x59]);
+
+        writeLineCalled = false;
+        zat.load('00:00:60', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(true);
+
+        writeLineCalled = false;
+        zat.load('00:59:59', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(false);
+        expect(zat.getMemory('bcd_time', 3)).toEqual([0x00, 0x59, 0x59]);
+    
+        writeLineCalled = false;
+        zat.load('00:60:00', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(true);
+
+        writeLineCalled = false;
+        zat.load('23:59:59', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(false);
+        expect(zat.getMemory('bcd_time', 3)).toEqual([0x23, 0x59, 0x59]);
+
+        writeLineCalled = false;
+        zat.load('24:00:00', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_time');
+
+        expect(writeLineCalled).toBe(true);
+    });
 });

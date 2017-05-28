@@ -118,7 +118,9 @@ read_char:
 
 line: ds 256
 
-; pass in hl pointing to the string to find
+; pass in HL = address of the string to look up
+; return DE = address of command to jump to
+;        HL = address of next byte after matched string
 lookup_command:
 .block
     ld de,commands              ; load the start of the command table
@@ -144,6 +146,8 @@ different:                      ; letters weren't the same, but after each comma
     cp (hl)
     jp nz,found_jump            ; if the word wasn't found, skip to the next command
 load_addr:
+    pop bc
+    push hl
     ld h,d                      ; load the address - MSB first
     ld l,e
     ld d,(hl)
@@ -207,6 +211,8 @@ bcd_to_num:
 ; HL = address of 2 digit number string
 ; returns A = BCD number
 ;         E = 0 - no error; 1 - error
+;         D = binary number
+;         HL = point to after the 2 digit string
 num_to_bcd:
 .block
     ld a,(hl)
@@ -215,9 +221,15 @@ num_to_bcd:
     jp c,error
     cp $0A
     jp nc,error
+    ld d,a
     sla a
     sla a
     sla a
+    push af
+    add a,d
+    add a,d
+    ld d,a
+    pop af
     sla a
     ld b,a
     inc hl
@@ -226,7 +238,12 @@ num_to_bcd:
     jp c,error
     cp $0A
     jp nc,error
+    push af
+    add a,d
+    ld d,a
+    pop af
     add a,b
+    inc hl
     ret
 error:
     ld e,1
@@ -284,6 +301,20 @@ print_date:
     call write_line
     ret
     
+; HL = string
+; return HL = string after any skipped spaces
+;        C = number of spaces skipped
+skip_spaces:
+.block
+    ld c,0
+    ld a,' '
+next:
+    cp (hl)
+    ret nz
+    inc hl
+    inc c
+    jp next
+.endblock
 
 timestr: db 'TIME: 00:00:00\n', 0
 datestr: db 'DATE: 0000-00-00\n', 0
@@ -305,10 +336,73 @@ cmd_time:
     jp print_date
 
 cmd_settime:
-    ; skip spaces
+    call skip_spaces
+    xor a
+    cp c
+    jp z,no_time
+    call parse_time
+
+; HL = address of time, in HH:MM:SS format (24 hour time)
+; returns with bcd time at bcd_time
+; writes error messages if there's an error
+parse_time:
+.block
+hours:
+    call num_to_bcd
+    ld bc,bcd_time
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_time
+    ld a,d
+    cp 24
+    jp nc,bad_time
+    ld a,':'
+    cp (hl)
+    jp nz,bad_time
+    inc hl
+
+minutes:
+    call num_to_bcd
+    ld bc,bcd_time + 1
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_time
+    ld a,d
+    cp 60
+    jp nc,bad_time
+    ld a,':'
+    cp (hl)
+    jp nz,bad_time
+    inc hl
+
+seconds:
+    call num_to_bcd
+    ld bc,bcd_time + 2
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_time
+    ld a,d
+    cp 60
+    jp nc,bad_time
+done:
+    ret
+
     ; expect time in format HH:MM:SS
     ; give up if it doesn't match
     ; ignore trailing rubbish, for now
+bad_time:
+    ld hl,bad_time_msg
+    jp write_line
+bad_time_msg: db 'Invalid time specified\n', 0
+no_time:
+    ld hl,no_time_msg
+    jp write_line
+no_time_msg: db 'No time specified\n', 0
+.endblock
+bcd_time: db 'xxx'
 
 cmd_peek:
 cmd_poke:
