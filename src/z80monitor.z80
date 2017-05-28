@@ -177,52 +177,50 @@ to_upper:
     ret
 
 rtc_ctrl_a: equ $2f
-rtc_seconds: equ $20
-rtc_minutes: equ $21
-rtc_hours: equ $22
+rtc_second: equ $20
+rtc_minute: equ $21
+rtc_hour: equ $22
+rtc_day: equ $23
+rtc_date: equ $24
+rtc_month: equ $25
+rtc_year: equ $26
+rtc_century: equ $27
+
+; A = 2 digit number in BCD
+; HL = address of place to store number
+bcd_to_num:
+    push af
+    and 0f0h
+    srl a
+    srl a
+    srl a
+    srl a
+    add a,030h
+    ld (hl),a
+    inc hl
+    pop af
+    and 00fh
+    add a,030h
+    ld (hl),a
+    ret
 
 print_time:
     ld a,001000000b ; TE=0, CS=1 (12.5pF crystal)
     out (rtc_ctrl_a),a
 
-    in a,(rtc_seconds)
-    and 0f0h
-    srl a
-    srl a
-    srl a
-    srl a
-    add a,030h
-    ld (timestr + 12),a
-    in a,(rtc_seconds)
-    and 00fh
-    add a,030h
-    ld (timestr + 13),a
+    in a,(rtc_hour)
+    ld hl,timestr + 6
+    call bcd_to_num
 
-    in a,(rtc_minutes)
-    and 0f0h
-    srl a
-    srl a
-    srl a
-    srl a
-    add a,030h
-    ld (timestr + 9),a
-    in a,(rtc_minutes)
-    and 00fh
-    add a,030h
-    ld (timestr + 10),a
+    in a,(rtc_minute)
+    inc hl
+    inc hl
+    call bcd_to_num
 
-    in a,(rtc_hours)
-    and 0f0h
-    srl a
-    srl a
-    srl a
-    srl a
-    add a,030h
-    ld (timestr + 6),a
-    in a,(rtc_hours)
-    and 00fh
-    add a,030h
-    ld (timestr + 7),a
+    in a,(rtc_second)
+    inc hl
+    inc hl
+    call bcd_to_num
 
     ld a,011000000b ; TE=1, CS=1 (12.5pF crystal)
     out (rtc_ctrl_a),a
@@ -231,7 +229,35 @@ print_time:
     call write_line
     ret
 
+print_date:
+    ld a,001000000b ; TE=0, CS=1 (12.5pF crystal)
+    out (rtc_ctrl_a),a
+
+    in a,(rtc_century)
+    ld hl,datestr + 6
+    call bcd_to_num
+
+    in a,(rtc_year)
+    inc hl
+    call bcd_to_num
+
+    in a,(rtc_month)
+    inc hl
+    inc hl
+    call bcd_to_num
+
+    in a,(rtc_date)
+    inc hl
+    inc hl
+    call bcd_to_num
+
+    ld hl,datestr
+    call write_line
+    ret
+    
+
 timestr: db 'TIME: 00:00:00\n', 0
+datestr: db 'DATE: 0000-00-00\n', 0
 
 ; store an address with MSB first, with bit 7 set to 1
 .macro djump
@@ -246,7 +272,8 @@ cmd_helpling:
 help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\n', 0
 
 cmd_time:
-    jp print_time
+    call print_time
+    jp print_date
     
 cmd_peek:
 cmd_poke:
@@ -256,6 +283,7 @@ cmd_out:
 cmd_jp:
 cmd_call:
 cmd_settime:
+cmd_setdate:
 cmd_reg:
 cmd_load:
 cmd_save:
@@ -293,6 +321,8 @@ commands:
     djump cmd_time
     db 'SETTIME'
     djump cmd_settime
+    db 'SETDATE'
+    djump cmd_setdate
     db 'REG'
     djump cmd_reg
     db 'LOAD'
