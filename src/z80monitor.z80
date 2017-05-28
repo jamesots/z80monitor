@@ -4,6 +4,7 @@ bell: equ 6
 
 chr_cr: equ 13
 chr_bs: equ 8
+chr_lf: equ 10
 
 bell_on: equ $ff
 bell_off: equ 0
@@ -27,7 +28,7 @@ end_loop:
 call_hl:
     jp (hl)
 
-boot_msg: db 'Z80 Monitor\r\n', 0
+boot_msg: db 'Z80 Monitor\n', 0
 
 ; wait for output buffer to be not-full and write char in A to it
 write_char:
@@ -53,8 +54,11 @@ read_line:
     ld hl,line                  ; hl is where the line will be stored
 read_line_char:
     call read_char
+    cp chr_lf
+    jp z,got_eol
     cp chr_cr                   
-    jp nz,check_bs              ; if key wasn't return, check if it was backspace
+    jp nz,check_bs              ; if key wasn't return or lf, check if it was backspace
+got_eol:
     call write_char             ; echo the return just typed
     ld (hl),0                   ; store a terminating zero
     ret
@@ -164,7 +168,7 @@ cmd_help:
 cmd_helpling:
     ld hl,help_msg
     jp write_line
-help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\r\n', 0
+help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\n', 0
 
 cmd_peek:
 cmd_poke:
@@ -181,9 +185,12 @@ cmd_save:
 cmd_romwrite:
     ld hl,not_implemented_msg
     jp write_line
-not_implemented_msg: db 'Not implemented yet\r\n', 0
+not_implemented_msg: db 'Not implemented yet\n', 0
 
 cmd_error:
+    ld hl, unknown_command
+    jp write_line
+unknown_command: db 'Unknown command\n', 0
     ret
 
 commands:
