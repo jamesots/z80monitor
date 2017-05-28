@@ -32,6 +32,7 @@ boot_msg: db 'Z80 Monitor\n', 0
 
 ; wait for output buffer to be not-full and write char in A to it
 write_char:
+.block
     push af
 write_char1:
     in a,(ft245_status)
@@ -40,6 +41,7 @@ write_char1:
     pop af
     out (ft245),a
     ret
+.endblock
 
 write_line:
     ld a,(hl)
@@ -50,6 +52,7 @@ write_line:
     jp write_line
 
 read_line:
+.block
     ld b,0ffh                   ; b is max line length
     ld hl,line                  ; hl is where the line will be stored
 read_line_char:
@@ -87,6 +90,7 @@ got_backspace:
 read_line_sound_bell:
     call sound_bell
     jp read_line_char
+.endblock
 
 sound_bell:
     push bc                     ; set up loop variables
@@ -116,6 +120,7 @@ line: ds 256
 
 ; pass in hl pointing to the string to find
 lookup_command:
+.block
     ld de,commands              ; load the start of the command table
 compare_next_word:
     push hl                     ; store the address of the line we are matching
@@ -160,6 +165,7 @@ found_jump:
     jp nz,load_addr             ; load that address and use it.
     pop hl                      ; otherwise restore the original string's address
     jp compare_next_word        ; and try again
+.endblock
 
 ; takes a byte in A and, if it's a-z, returns it in upper case
 to_upper:
