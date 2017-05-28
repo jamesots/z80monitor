@@ -121,13 +121,16 @@ compare_next_word:
     push hl                     ; store the address of the line we are matching
 compare_next_letter:
     ld a,(de)                   ; get next letter
-    cp (hl)                     ; compare it with letter in command table
+    ld b,a
+    ld a,(hl)
+    call to_upper
+    cp b                        ; compare it with letter in command table
     jp nz,different
     inc de                      ; if they matched, move onto the next letter
     inc hl
     jp compare_next_letter
 different:                      ; letters weren't the same, but after each command string
-    bit 7,a                     ; there's a jump address with the high order bit set.
+    bit 7,b                     ; there's a jump address with the high order bit set.
     jp z,find_jump              ; if it's not set, look for the next command
     ld a,' '                    ; now check we've found the end of the string
     cp (hl)                     ; look for a space first
@@ -157,6 +160,15 @@ found_jump:
     jp nz,load_addr             ; load that address and use it.
     pop hl                      ; otherwise restore the original string's address
     jp compare_next_word        ; and try again
+
+; takes a byte in A and, if it's a-z, returns it in upper case
+to_upper:
+    cp 'a'
+    ret c
+    cp 'z' + 1
+    ret nc
+    sub 'a' - 'A'
+    ret
 
 ; store an address with MSB first, with bit 7 set to 1
 .macro djump

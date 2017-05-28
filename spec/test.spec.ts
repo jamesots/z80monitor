@@ -236,5 +236,44 @@ start:
         zat.call('loop', {steps: 200});
 
         expect(called).toBe(true);
-    })
+    });
+
+    it('should make letters upper case', function() {
+        zat.loadProg(prog);
+
+        zat.z80.a = '`'.charCodeAt(0);
+        zat.call('to_upper');
+        expect(zat.z80.a).toBe('`'.charCodeAt(0));
+
+        zat.z80.a = 'a'.charCodeAt(0);
+        zat.call('to_upper');
+        expect(zat.z80.a).toBe('A'.charCodeAt(0));
+
+        zat.z80.a = 'b'.charCodeAt(0);
+        zat.call('to_upper');
+        expect(zat.z80.a).toBe('B'.charCodeAt(0));
+
+        zat.z80.a = 'y'.charCodeAt(0);
+        zat.call('to_upper');
+        expect(zat.z80.a).toBe('Y'.charCodeAt(0));
+
+        zat.z80.a = 'z'.charCodeAt(0);
+        zat.call('to_upper');
+        expect(zat.z80.a).toBe('Z'.charCodeAt(0));
+
+        zat.z80.a = '{'.charCodeAt(0);
+        zat.call('to_upper');
+        expect(zat.z80.a).toBe('{'.charCodeAt(0));
+    });
+
+    it('should find lower case string', function() {
+        zat.loadProg(prog);
+
+        zat.load('peek\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('lookup_command');
+
+        expect(zat.z80.de).toBe(zat.getAddress('cmd_peek'));
+    });
+
 });
