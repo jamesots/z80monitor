@@ -509,4 +509,20 @@ start:
 
         expect(zat.z80.e).toBe(1);
     });
+
+    it('should format 2 digit hex', function() {
+        zat.loadProg(prog);
+
+        zat.z80.a = 0x12;
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('format_hex_2');
+
+        expect(zat.getMemory('line', 2)).toEqual(stringToBytes('12'));
+
+        zat.z80.a = 0xaf;
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('format_hex_2');
+
+        expect(zat.getMemory('line', 2)).toEqual(stringToBytes('AF'));
+    });
 });

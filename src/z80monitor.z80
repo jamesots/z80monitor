@@ -502,7 +502,58 @@ bad_hex:
     ret
 .endblock
 
+; A = number
+; HL = address to store formatted number at
+format_hex_2:
+.block
+    ld d,2
+    push af
+    srl a
+    srl a
+    srl a    
+    srl a
+next_digit:
+    cp 10
+    jp c,num
+    add a,'A' - '0' - 10
+num:
+    add a,'0'
+    ld (hl),a
+    inc hl
+    pop af
+    and $0f
+    dec d
+    jp nz,next_digit
+    ret
+.endblock
+
 cmd_peek:
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+
+    ld a,(bc)
+    ld hl,value
+    call format_hex_2
+
+    ld hl,value
+    jp write_line
+error:
+    ld hl,error_msg
+    jp write_line
+error_msg: db 'Error\n',0
+value: db '00\n',0
+.endblock
+    
+
 cmd_poke:
 cmd_dump:
 cmd_in:
