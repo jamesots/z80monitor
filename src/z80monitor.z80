@@ -345,7 +345,30 @@ cmd_settime:
     cp c
     jp z,no_time
     call parse_time
+    xor a               ; check error code
+    cp e
+    ret nz
+
+    ld a,001000000b ; TE=0, CS=1 (12.5pF crystal)
+    out (rtc_ctrl_a),a
+
+    ld hl,bcd_time
+    ld a,(hl)
+    out (rtc_hour),a
+    inc hl
+    ld a,(hl)
+    out (rtc_minute),a
+    inc hl
+    ld a,(hl)
+    out (rtc_second),a
+    
+    ld a,011000000b ; TE=1, CS=1 (12.5pF crystal)
+    out (rtc_ctrl_a),a
+
+    ld hl,time_set
+    call write_line
     ret
+time_set: db 'Time set\n', 0
 
 ; HL = address of time, in HH:MM:SS format (24 hour time)
 ; returns with bcd time at bcd_time
@@ -393,6 +416,10 @@ seconds:
     cp 60
     jp nc,bad_time
 done:
+    xor a
+    cp (hl)
+    jp nz,bad_time
+    ld e,0
     ret
 
     ; expect time in format HH:MM:SS
@@ -400,11 +427,15 @@ done:
     ; ignore trailing rubbish, for now
 bad_time:
     ld hl,bad_time_msg
-    jp write_line
+    call write_line
+    ld e,1
+    ret
 bad_time_msg: db 'Invalid time specified\n', 0
 no_time:
     ld hl,no_time_msg
-    jp write_line
+    call write_line
+    ld e,1
+    ret
 no_time_msg: db 'No time specified\n', 0
 .endblock
 bcd_time: db 'xxx'
