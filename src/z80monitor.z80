@@ -523,7 +523,9 @@ num:
     pop af
     and $0f
     dec d
+    push af
     jp nz,next_digit
+    pop af
     ret
 .endblock
 
