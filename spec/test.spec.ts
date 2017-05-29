@@ -424,4 +424,89 @@ start:
 
         expect(writeLineCalled).toBe(true);
     });
+
+    it('should parse hex number', function() {
+        zat.loadProg(prog);
+
+        zat.load('0\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('9\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0x9);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('a\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0xa);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('A\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0xa);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('F\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0xf);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('G\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.e).toBe(1);
+
+        zat.load('G\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.e).toBe(1);
+
+        zat.load('00\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('FF\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0xff);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('FFFF\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0xffff);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('BABE\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.bc).toBe(0xbabe);
+        expect(zat.z80.e).toBe(0);
+
+        zat.load('BABEE\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.call('parse_hex');
+
+        expect(zat.z80.e).toBe(1);
+    });
 });
