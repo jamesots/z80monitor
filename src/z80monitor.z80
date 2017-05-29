@@ -19,8 +19,10 @@ loop:
     call read_line
     ld hl,line
     call lookup_command
-    ld h,d
-    ld l,e
+    push hl     ; swap hl and de
+    push de
+    pop hl
+    pop de
     call call_hl
 end_loop:
     jp loop
@@ -336,11 +338,14 @@ cmd_time:
     jp print_date
 
 cmd_settime:
+    ld h,d
+    ld l,e
     call skip_spaces
     xor a
     cp c
     jp z,no_time
     call parse_time
+    ret
 
 ; HL = address of time, in HH:MM:SS format (24 hour time)
 ; returns with bcd time at bcd_time

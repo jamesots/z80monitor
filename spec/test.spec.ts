@@ -226,16 +226,14 @@ start:
         zat.loadProg(prog);
 
         let called = false;
-        zat.onStep = new StepMock(zat)
-        .setFakeCall('read_line', () => {
+        zat.mockCall('read_line', () => {
             zat.load('HELP\0', 'line');
-        })
-        .setFakeCall('call_hl', () => {
+        });
+        zat.mockCall('call_hl', () => {
             called = true;
             expect(zat.z80.hl).toBe(zat.getAddress('cmd_help'));
-        })
-        .setBreakpoint('end_loop')
-        .mock();
+        });
+        zat.setBreakpoint('end_loop');
         zat.call('loop', {steps: 200});
 
         expect(called).toBe(true);
@@ -370,12 +368,9 @@ start:
         zat.loadProg(prog);
 
         var writeLineCalled = false;
-        zat.onStep = new StepMock(zat)
-            .setOnStep('write_line', () => {
+        zat.mockStep('write_line', () => {
                 writeLineCalled = true;
-            })
-            // .setLogger()
-            .mock();
+            });
 
         zat.load('00:00:00', 'line');
         zat.z80.hl = zat.getAddress('line');
