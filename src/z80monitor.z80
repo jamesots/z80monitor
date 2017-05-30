@@ -5,9 +5,12 @@ bell: equ 6
 chr_cr: equ 13
 chr_bs: equ 8
 chr_lf: equ 10
+chr_up: equ 3
 
 bell_on: equ $ff
 bell_off: equ 0
+
+comma: equ 0x2c ; ',' causes problems in asm80 parser
 
 .phase 0
 start:
@@ -45,6 +48,8 @@ write_char1:
     ret
 .endblock
 
+; HL = address of null terminates string to display
+; returns with HL pointing at the null terminator
 write_line:
     ld a,(hl)
     cp 0
@@ -55,10 +60,25 @@ write_line:
 
 read_line:
 .block
-    ld b,0ffh                   ; b is max line length
+    ld b,$ff                   ; b is max line length
     ld hl,line                  ; hl is where the line will be stored
 read_line_char:
     call read_char
+    cp chr_up
+    jp nz,check_lf
+    ld a,$ff
+    cp b
+    jp nz,read_line_char
+    push hl
+    call write_line
+    pop de
+    or a
+    sbc hl,de
+    ld a,$ff
+    sub l
+    ld b,a
+    jp read_line_char
+check_lf:
     cp chr_lf
     jp z,got_eol
     cp chr_cr                   
@@ -477,7 +497,7 @@ add_digit:
     ld a,' '
     cp (hl)
     ret z
-    ld a,0x2C   ; comma - doesn't parse as ','
+    ld a,comma
     cp (hl)
     ret z
 
@@ -504,6 +524,8 @@ bad_hex:
 
 ; A = number
 ; HL = address to store formatted number at
+; destroys D
+; returns with HL pointing to address after formatted number
 format_hex_2:
 .block
     ld d,2
@@ -554,10 +576,89 @@ error:
 error_msg: db 'Error\n',0
 value: db '00\n',0
 .endblock
+
+cmd_dump:
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+
+    push bc
+
+    ld a,comma
+    cp (hl)
+    jp nz,error
+
+    inc hl
+    call parse_hex
+    xor a
+    cp e
+    jp nz,error
+
+; hl d bc
+    pop hl
+    ; now hl = start address, bc = length
+
+    ; reset hl to start of a 16 byte row
+    ld a,l
+    and 0xf0
+    ld l,a
+
+    ; print address
+    ; print up to 16 hex bytes followed by spaces
+    ; print up to 16 ascii characters
+    ; 
+
+    push bc
+    push hl
+
+start_of_line:
+    ld a,h
+    call format_hex_2
+    ld a,l
+    call format_hex_2
+    inc hl ; leave a space
     
+hex_digits:
+    ld a,(hl)
+    call format_hex_2
+    and $0f
+    jp nz,hex_digits
+
+    ld (hl),'\n'
+    inc hl
+    ld (hl),0
+    call write_line
+
+    pop hl
+    push hl
+
+    dec bc
+    xor a
+    cp b
+    jp nz,more_digits
+    cp c
+    jp nz,more_digits
+    ; done
+    ret
+more_digits:
+    jp start_of_line
+dumpline: db '                                                                         ',0
+error:
+    ld hl,error_msg
+    jp write_line
+error_msg: db 'Error\n',0
+value: db '00\n',0
+.endblock
 
 cmd_poke:
-cmd_dump:
 cmd_in:
 cmd_out:
 cmd_jp:
