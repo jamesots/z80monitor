@@ -520,11 +520,13 @@ start:
         zat.call('format_hex_2');
 
         expect(zat.getMemory('line', 3)).toEqual(stringToBytes('12X'));
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 2);
 
         zat.z80.a = 0xaf;
         zat.z80.hl = zat.getAddress('line');
         zat.call('format_hex_2');
 
         expect(zat.getMemory('line', 3)).toEqual(stringToBytes('AFX'));
+        expect(zat.z80.hl).toBe(zat.getAddress('line') + 2);
     });
 });
