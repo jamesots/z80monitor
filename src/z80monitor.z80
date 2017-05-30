@@ -621,11 +621,14 @@ cmd_dump:
 
     push bc
     push hl
+    pop bc
+    push bc
 
 start_of_line:
-    ld a,h
+    ld hl,dumpline
+    ld a,b
     call format_hex_2
-    ld a,l
+    ld a,c
     call format_hex_2
     inc hl ; leave a space
     

@@ -1,6 +1,22 @@
 import { Zat, IoSpy, StepMock, customMatchers, stringToBytes, hex16, Compiler, CompiledProg, Z80 } from 'zat';
 import 'zat/lib/matchers';
 
+function bytesToString(bytes: number[]): string {
+    let str = '';
+    for (let byte of bytes) {
+        str += String.fromCharCode(byte);
+    }
+    return str;
+}
+
+function getNullTerminatedString(zat: Zat, start: number) {
+    let str = '';
+    while (zat.memory[start] !== 0) {
+        str += String.fromCharCode(zat.memory[start++]);
+    }
+    return str;
+}
+
 describe('z80monitor', function() {
     let zat: Zat;
     let prog: CompiledProg;
@@ -545,5 +561,19 @@ start:
 
         expect(zat.getMemory('line', 3)).toEqual(stringToBytes('AFX'));
         expect(zat.z80.hl).toBe(zat.getAddress('line') + 2);
+    });
+
+    it('should dump memory', function() {
+        zat.loadProg(prog);
+
+        zat.logSteps();
+        zat.load([0,1,2,3,4,5,6,7,0xf,0xe,0xd,0xc,0xb,0xa,9,8], 0xf000);
+        zat.load(' f000,f', 'line');
+        zat.mockCall('write_line', function() {
+            expect(getNullTerminatedString(zat, zat.z80.hl)).toBe('0f00 00 01 02 03 04 05 06 07 0f 0e 0d 0c 0b 0a 09 0a\n');
+        })
+        zat.z80.de = zat.getAddress('line');
+
+        zat.call('cmd_dump', {steps: 400});
     });
 });
