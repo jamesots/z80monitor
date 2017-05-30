@@ -319,6 +319,9 @@ print_date:
     inc hl
     call bcd_to_num
 
+    ld a,011000000b ; TE=1, CS=1 (12.5pF crystal)
+    out (rtc_ctrl_a),a
+
     ld hl,datestr
     call write_line
     ret
