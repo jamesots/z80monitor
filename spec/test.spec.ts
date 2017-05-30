@@ -139,6 +139,23 @@ start:
         expect(zat.getMemory('line', 2)).toEqual(stringToBytes('h\0'));
     });
 
+    it('should recall last line', function() {
+        zat.loadProg(prog);
+
+        zat.load('hello\0', 'line');
+        zat.z80.hl = zat.getAddress('line');
+        zat.mockCall('write_line', function() {
+            zat.z80.hl = zat.z80.hl + 5;
+        });
+        let index = 0;
+        zat.mockCall('read_char', function() {
+            zat.z80.a = [3, 13][index++]
+        });
+        zat.call('read_line');
+
+        expect(zat.getMemory('line', 6)).toEqual(stringToBytes('hello\0'));
+    });
+
     it('should find first string', function() {
         zat.loadProg(prog);
 
