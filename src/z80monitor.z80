@@ -647,6 +647,31 @@ hex_digits:
     cp 0
     jp nz,hex_digits
 
+    dec de
+    ld a,e
+    and 0xf0
+    ld e,a
+
+ascii_chars:
+    ld a,(de)
+    cp ' '
+    call c,ascii_dot
+    cp '~' + 1
+    call nc,ascii_dot
+    ld (hl),a
+
+    inc hl
+    inc de
+    ld a,e
+    and $0f
+    cp 0
+    jp nz,ascii_chars
+    jp eol
+ascii_dot:
+    ld a,'.'
+    ret
+eol:
+
     ld (hl),'\n'
     inc hl
     ld (hl),0

@@ -572,8 +572,8 @@ start:
         let called = 0;
         zat.mockCall('write_line', function() {
             expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
-                .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 \n',
-                'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 \n'][called++]);
+                .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 ................\n',
+                'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 ................\n'][called++]);
         })
         zat.z80.de = zat.getAddress('line');
 
@@ -591,8 +591,27 @@ start:
         let called = 0;
         zat.mockCall('write_line', function() {
             expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
-                .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 \n',
-                'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 \n'][called++]);
+                .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 ................\n',
+                'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 ................\n'][called++]);
+        })
+        zat.z80.de = zat.getAddress('line');
+
+        zat.call('cmd_dump');
+
+        expect(called).toBe(2);
+    });
+
+    it('should dump ascii chars', function() {
+        zat.loadProg(prog);
+
+        zat.load(stringToBytes('This is a test. '), 0xf000);
+        zat.load([0x30,0x2f,0x7e,0x7f,0x31,0x32,0x33,0x34, 0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48], 0xf010);
+        zat.load(' f005,15\0', 'line');
+        let called = 0;
+        zat.mockCall('write_line', function() {
+            expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
+                .toBe(['F000 54 68 69 73 20 69 73 20 61 20 74 65 73 74 2E 20 This is a test. \n',
+                'F010 30 2F 7E 7F 31 32 33 34 41 42 43 44 45 46 47 48 0/~.1234ABCDEFGH\n'][called++]);
         })
         zat.z80.de = zat.getAddress('line');
 
