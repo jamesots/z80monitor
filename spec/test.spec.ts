@@ -566,14 +566,38 @@ start:
     it('should dump memory', function() {
         zat.loadProg(prog);
 
-        zat.logSteps();
         zat.load([0,1,2,3,4,5,6,7,0xf,0xe,0xd,0xc,0xb,0xa,9,8], 0xf000);
-        zat.load(' f000,f', 'line');
+        zat.load([0xf,0xe,0xd,0xc,0xb,0xa,9,8,0,1,2,3,4,5,6,7], 0xf010);
+        zat.load(' f000,1f\0', 'line');
+        let called = 0;
         zat.mockCall('write_line', function() {
-            expect(getNullTerminatedString(zat, zat.z80.hl)).toBe('0f00 00 01 02 03 04 05 06 07 0f 0e 0d 0c 0b 0a 09 0a\n');
+            expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
+                .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 \n',
+                'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 \n'][called++]);
         })
         zat.z80.de = zat.getAddress('line');
 
-        zat.call('cmd_dump', {steps: 400});
+        zat.call('cmd_dump');
+
+        expect(called).toBe(2);
+    });
+
+    it('should dump memory on 16 byte page boundaries', function() {
+        zat.loadProg(prog);
+
+        zat.load([0,1,2,3,4,5,6,7,0xf,0xe,0xd,0xc,0xb,0xa,9,8], 0xf000);
+        zat.load([0xf,0xe,0xd,0xc,0xb,0xa,9,8,0,1,2,3,4,5,6,7], 0xf010);
+        zat.load(' f005,15\0', 'line');
+        let called = 0;
+        zat.mockCall('write_line', function() {
+            expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
+                .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 \n',
+                'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 \n'][called++]);
+        })
+        zat.z80.de = zat.getAddress('line');
+
+        zat.call('cmd_dump');
+
+        expect(called).toBe(2);
     });
 });

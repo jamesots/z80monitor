@@ -595,6 +595,7 @@ cmd_dump:
 
     push bc
 
+_check_comma:
     ld a,comma
     cp (hl)
     jp nz,error
@@ -606,63 +607,80 @@ cmd_dump:
     jp nz,error
 
 ; hl d bc
-    pop hl
-    ; now hl = start address, bc = length
+    pop de
 
-    ; reset hl to start of a 16 byte row
-    ld a,l
+    ; reset de to start of a 16 byte row
+    ld a,e
     and 0xf0
-    ld l,a
+    ld e,a
 
     ; print address
     ; print up to 16 hex bytes followed by spaces
     ; print up to 16 ascii characters
-    ; 
 
     push bc
-    push hl
-    pop bc
-    push bc
+
+    ; now de = start address
+    ;     bc = length
+    ;     hl = address to store formatted text
 
 start_of_line:
+    push de
     ld hl,dumpline
-    ld a,b
+    ld a,d
     call format_hex_2
-    ld a,c
+    ld a,e
     call format_hex_2
     inc hl ; leave a space
-    
+    pop de
+
 hex_digits:
-    ld a,(hl)
+    push de
+    ld a,(de)    
     call format_hex_2
+    pop de
+
+    inc hl
+    inc de
+    ld a,e
     and $0f
+    cp 0
     jp nz,hex_digits
 
     ld (hl),'\n'
     inc hl
     ld (hl),0
+
+    ld hl,dumpline
     call write_line
 
-    pop hl
-    push hl
+    pop bc  ; length to dump
 
     dec bc
+    ld a,c
+    and 0xf0
+    ld c,a
+
+    push bc
+
     xor a
     cp b
     jp nz,more_digits
     cp c
     jp nz,more_digits
+
+    pop bc
     ; done
     ret
 more_digits:
     jp start_of_line
-dumpline: db '                                                                         ',0
 error:
     ld hl,error_msg
     jp write_line
 error_msg: db 'Error\n',0
 value: db '00\n',0
 .endblock
+dumpline: db '                                                                         ',0
 
 cmd_poke:
 cmd_in:
