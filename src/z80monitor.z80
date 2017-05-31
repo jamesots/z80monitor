@@ -562,6 +562,36 @@ num:
     ret
 .endblock
 
+cmd_in:
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+
+    xor a
+    cp 0
+    jp nz,error
+
+    in a,(c)
+    ld hl,value
+    call format_hex_2
+
+    ld hl,value
+    jp write_line
+error:
+    ld hl,error_msg
+    jp write_line
+error_msg: db 'Error\n',0
+value: db '00\n',0
+.endblock
+
 cmd_peek:
 .block
     ld h,d
@@ -742,7 +772,6 @@ value: db '00\n',0
 dumpline: db '                                                                         ',0
 
 cmd_poke:
-cmd_in:
 cmd_out:
 cmd_call:
 cmd_setdate:

@@ -1,4 +1,4 @@
-import { Zat, IoSpy, StepMock, customMatchers, stringToBytes, hex16, Compiler, CompiledProg, Z80 } from 'zat';
+import { Zat, IoSpy, StepMock, StepResponse, customMatchers, stringToBytes, hex16, Compiler, CompiledProg, Z80 } from 'zat';
 import 'zat/lib/matchers';
 
 function bytesToString(bytes: number[]): string {
@@ -618,5 +618,27 @@ start:
         zat.call('cmd_dump');
 
         expect(called).toBe(2);
+    });
+
+    it('should do an IN', function() {
+        zat.loadProg(prog);
+
+        let ioSpy = new IoSpy(zat)
+            .onIn(0x10, 0x25);
+
+        zat.onIoRead = ioSpy.readSpy();
+
+        zat.load(' 10', 'line');
+        zat.z80.de = zat.getAddress('line');
+        let called = false;
+        zat.mockStep('write_line', function() {
+            expect(getNullTerminatedString(zat, zat.z80.hl))
+                .toBe('25\n');
+            called = true;
+            return StepResponse.BREAK;
+        });
+        zat.call('cmd_in');
+
+        expect(called).toBe(true);
     });
 });
