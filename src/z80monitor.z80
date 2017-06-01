@@ -1017,7 +1017,6 @@ value: db '00\n',0
 .endblock
 dumpline: db '                                                                         ',0
 
-cmd_reg:
 cmd_load:
 cmd_save:
 cmd_romwrite:
@@ -1058,8 +1057,6 @@ commands:
     djump cmd_settime
     db 'SETDATE'
     djump cmd_setdate
-    db 'REG'
-    djump cmd_reg
     db 'LOAD'
     djump cmd_load
     db 'SAVE'
