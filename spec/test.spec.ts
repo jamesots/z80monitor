@@ -641,4 +641,22 @@ start:
 
         expect(called).toBe(true);
     });
+
+    it('should set date', function() {
+        zat.loadProg(prog);
+
+        zat.load(' 2017-06-01\0', 'line');
+        let called = 0;
+        zat.mockCall('write_line', function() {
+            called++;
+            expect(getNullTerminatedString(zat, zat.z80.hl))
+                .toBe('Date set\n');
+        });
+        zat.z80.de = zat.getAddress('line');
+
+        zat.call('cmd_setdate');
+
+        expect(called).toBe(1);
+        expect(zat.getMemory('bcd_date', 4)).toEqual([0x20, 0x17, 0x06, 0x01]);
+    });
 });

@@ -364,9 +364,47 @@ cmd_helpling:
     jp write_line
 help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\n', 0
 
+cmd_date:
 cmd_time:
     call print_time
     jp print_date
+
+cmd_setdate:
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,no_date
+    call parse_date
+    xor a               ; check error code
+    cp e
+    ret nz
+
+    ld a,001000000b ; TE=0, CS=1 (12.5pF crystal)
+    out (rtc_ctrl_a),a
+
+    ld hl,bcd_date
+    ld a,(hl)
+    out (rtc_century),a
+    inc hl
+    ld a,(hl)
+    out (rtc_year),a
+    inc hl
+    ld a,(hl)
+    out (rtc_month),a
+    inc hl
+    ld a,(hl)
+    out (rtc_date),a
+    
+    ld a,011000000b ; TE=1, CS=1 (12.5pF crystal)
+    out (rtc_ctrl_a),a
+
+    ld hl,date_set
+    call write_line
+    ret
+date_set: db 'Date set\n', 0
+    
 
 cmd_settime:
     ld h,d
@@ -470,6 +508,85 @@ no_time:
 no_time_msg: db 'No time specified\n', 0
 .endblock
 bcd_time: db 'xxx'
+
+; HL = address of date, in YYYY-MM-DD format
+; returns with bcd date at bcd_date
+; writes error messages if there's an error
+; can enter bad dates
+parse_date:
+.block
+century:
+    call num_to_bcd
+    ld bc,bcd_date
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_date
+
+year:
+    call num_to_bcd
+    ld bc,bcd_date + 1
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_date
+    ld a,'-'
+    cp (hl)
+    jp nz,bad_date
+    inc hl
+
+month:
+    call num_to_bcd
+    ld bc,bcd_date + 2
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_date
+    ld a,d
+    cp 13
+    jp nc,bad_date
+    cp 0
+    jp z,bad_date
+    ld a,'-'
+    cp (hl)
+    jp nz,bad_date
+    inc hl
+
+date:
+    call num_to_bcd
+    ld bc,bcd_date + 3
+    ld (bc),a
+    xor a
+    cp e
+    jp nz,bad_date
+    ld a,d
+    cp 32
+    jp nc,bad_date
+    cp 0
+    jp z,bad_date
+done:
+    xor a
+    cp (hl)
+    jp nz,bad_date
+    ld e,0
+    ret
+
+    ; expect date in format YYYY-MM-DD
+    ; give up if it doesn't match
+bad_date:
+    ld hl,bad_date_msg
+    call write_line
+    ld e,1
+    ret
+bad_date_msg: db 'Invalid date specified\n', 0
+no_date:
+    ld hl,no_date_msg
+    call write_line
+    ld e,1
+    ret
+no_date_msg: db 'No date specified\n', 0
+.endblock
+bcd_date: db 'xxxx'
 
 ; HL = address of 1-4 digits of hex, terminated with null, space or comma
 ; BC = number
@@ -900,7 +1017,6 @@ value: db '00\n',0
 .endblock
 dumpline: db '                                                                         ',0
 
-cmd_setdate:
 cmd_reg:
 cmd_load:
 cmd_save:
@@ -934,6 +1050,8 @@ commands:
     djump cmd_jp
     db 'CALL'
     djump cmd_call
+    db 'DATE'
+    djump cmd_date
     db 'TIME'
     djump cmd_time
     db 'SETTIME'
