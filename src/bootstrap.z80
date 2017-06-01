@@ -48,6 +48,7 @@ start:
                     ; it'll just be reading successive bytes from the FT245R
         ld bc,endapp-app
         
+        ld sp,$0000
         ; jump to the LDIR instruction
         jp $8000
 
