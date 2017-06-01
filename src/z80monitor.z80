@@ -576,7 +576,7 @@ cmd_in:
     jp nz,error
 
     xor a
-    cp 0
+    cp b
     jp nz,error
 
     in a,(c)
