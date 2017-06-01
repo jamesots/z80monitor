@@ -694,6 +694,34 @@ error:
 error_msg: db 'Error\n',0
 .endblock
 
+cmd_call:
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+
+    xor a               ; check end of line
+    cp (hl)
+    jp nz,error
+
+    ld h,b
+    ld l,c
+    
+    call call_hl
+    ret
+error:
+    ld hl,error_msg
+    jp write_line
+error_msg: db 'Error\n',0
+.endblock
+
 cmd_dump:
 .block
     ld h,d
@@ -822,7 +850,6 @@ value: db '00\n',0
 dumpline: db '                                                                         ',0
 
 cmd_poke:
-cmd_call:
 cmd_setdate:
 cmd_reg:
 cmd_load:
