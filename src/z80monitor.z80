@@ -11,6 +11,7 @@ bell_on: equ $ff
 bell_off: equ 0
 
 comma: equ 0x2c ; ',' causes problems in asm80 parser
+semicolon: equ 0x3b ; ';' causes problems in asm80 parser
 
 .phase 0
 start:
@@ -369,7 +370,22 @@ cmd_help:
 cmd_helpling:
     ld hl,help_msg
     jp write_line
-help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME LOAD SAVE COPY\n', 0
+help_msg: db 'Available commands:\n'
+    db '  HELP\n'
+    db '  PEEK addr\n'
+    db '  POKE addr',comma,'val\n'
+    db '  DUMP addr',comma,'len\n'
+    db '  IN port\n'
+    db '  OUT port',comma,'val\n'
+    db '  JP addr\n'
+    db '  CALL addr\n'
+    db '  TIME\n'
+    db '  DATE\n'
+    db '  SETTIME hh:mm:ss\n'
+    db '  SETDATE yyyy-mm-dd\n'
+    db '  COPY src',comma,'dest',comma,'len\n'
+    db '  LOAD\n'
+    db '  SAVE\n', 0
 
 cmd_date:
 cmd_time:
