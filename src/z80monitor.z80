@@ -15,6 +15,12 @@ comma: equ 0x2c ; ',' causes problems in asm80 parser
 .phase 0
 start:
     ld sp,$0000
+    ld a,1
+    out (1),a
+    inc a
+    out (2),a
+    inc a
+    out (3),a    
     ld hl,boot_msg
     call write_line
     call clear_input_buffer
