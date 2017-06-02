@@ -369,7 +369,7 @@ cmd_help:
 cmd_helpling:
     ld hl,help_msg
     jp write_line
-help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME REG LOAD SAVE ROMWRITE\n', 0
+help_msg: db 'Available commands: HELP PEEK POKE DUMP IN OUT JP CALL TIME SETTIME LOAD SAVE COPY\n', 0
 
 cmd_date:
 cmd_time:
@@ -897,6 +897,57 @@ error:
 error_msg: db 'Error\n',0
 .endblock
 
+cmd_copy:
+    ; COPY FROM,TO,LENGTH
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+    push bc
+
+_check_comma1:
+    ld a,comma
+    cp (hl)
+    jp nz,error
+
+    inc hl
+    call parse_hex
+    xor a
+    cp e
+    jp nz,error
+    push bc
+
+_check_comma2:
+    ld a,comma
+    cp (hl)
+    jp nz,error
+
+    inc hl
+    call parse_hex
+    xor a
+    cp e
+    jp nz,error
+    
+    pop de
+    pop hl
+    ldir
+    ld hl,copied_msg
+    jp write_line
+    
+copied_msg: db 'Copied\n',0
+error:
+    ld hl,error_msg
+    jp write_line
+error_msg: db 'Error\n',0
+.endblock
+
 cmd_dump:
 .block
     ld h,d
@@ -1026,7 +1077,6 @@ dumpline: db '                                                                  
 
 cmd_load:
 cmd_save:
-cmd_romwrite:
     ld hl,not_implemented_msg
     jp write_line
 not_implemented_msg: db 'Not implemented yet\n', 0
@@ -1068,8 +1118,8 @@ commands:
     djump cmd_load
     db 'SAVE'
     djump cmd_save
-    db 'ROMWRITE'
-    djump cmd_romwrite
+    db 'COPY'
+    djump cmd_copy
     djump cmd_error
 
 end:
