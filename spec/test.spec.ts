@@ -30,11 +30,12 @@ describe('z80monitor', function() {
 
         zat = new Zat();
         zat.defaultCallSp = 0xFF00;
+
+        zat.loadProg(prog);
+        zat.call('setup_buffers');
     });
 
     it('should write a line', function() {
-        zat.loadProg(prog);
-
         zat.load('Hello\0', 0x5000);
         let ioSpy = new IoSpy(zat)
             .onIn(9, 0)
@@ -55,8 +56,6 @@ describe('z80monitor', function() {
     });
 
     it('should read a character', function() {
-        zat.loadProg(prog);
-
         let ioSpy = new IoSpy(zat).onIn([9, '\xff\xff\0'], [8, 65]);
         zat.onIoRead = ioSpy.readSpy();
         zat.call('read_char');
@@ -65,8 +64,6 @@ describe('z80monitor', function() {
     });
 
     it('should sound bell', function() {
-        zat.loadProg(prog);
-
         const values = [];
         let count = 0;
         zat.onMemRead = (addr) => {
@@ -83,39 +80,7 @@ describe('z80monitor', function() {
         expect(count).toEqual(0x100 * 0x10);
     });
 
-    it('should read and write', function() {
-        zat.compile(`
-start:
-    ld a,1
-    out (5),a
-    in a,(6)
-    out (7),a
-    in a,(8)
-    ld a,100
-    out (1),a
-    out (2),a
-    in a,(2)
-    in a,(2)
-    out (1),a
-    ret
-        `);
-        const ioSpy = new IoSpy(zat)
-            .onOut(5, 1)
-            .onIn(6, 27)
-            .onOut(7, 27)
-            .onIn(8, 11)
-            .onOut([1, 100], [2, 100])
-            .onIn([2, 1], [2, 2])
-            .onOut(1, 2)
-        zat.onIoRead = ioSpy.readSpy();
-        zat.onIoWrite = ioSpy.writeSpy();
-        zat.call('start');
-        expect(ioSpy).toBeComplete();
-    });
-
     it('should read a line', function() {
-        zat.loadProg(prog);
-
         // Create two separate spies, so that the order of reads and writes doesn't matter.
         // It does, but I'm trying to test the bigger picture. Can do the order in another test.
         const readSpy = new IoSpy(zat)
@@ -139,8 +104,6 @@ start:
     });
 
     it('should read a line - details', function() {
-        zat.loadProg(prog);
-
         const ioSpy = new IoSpy(zat)
             .onIn(['ft245_status', 0], ['ft245', 8]) // read a backspace
             .onOut(['bell', [0xff, 0]]) // sound bell
@@ -156,8 +119,6 @@ start:
     });
 
     it('should recall last line', function() {
-        zat.loadProg(prog);
-
         zat.load('hello\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.mockCall('write_line', function() {
@@ -173,8 +134,6 @@ start:
     });
 
     it('should find first string', function() {
-        zat.loadProg(prog);
-
         zat.load('HELP\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -184,8 +143,6 @@ start:
     });
 
     it('should find second string', function() {
-        zat.loadProg(prog);
-
         zat.load('PEEK\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -195,8 +152,6 @@ start:
     });
 
     it('should find second string, terminated by space', function() {
-        zat.loadProg(prog);
-
         zat.load('PEEK ', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -206,8 +161,6 @@ start:
     });
 
     it('should fail to find string', function() {
-        zat.loadProg(prog);
-
         zat.load('WIBBLE\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -216,8 +169,6 @@ start:
     });
 
     it('should fail to find short string', function() {
-        zat.loadProg(prog);
-
         zat.load('HEL ', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -226,8 +177,6 @@ start:
     });
 
     it('should fail to string which almost matches first string', function() {
-        zat.loadProg(prog);
-
         zat.load('HELP! ', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -236,8 +185,6 @@ start:
     });
 
     it('should fail to find no string', function() {
-        zat.loadProg(prog);
-
         zat.load(' ', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -246,8 +193,6 @@ start:
     });
 
     it('should fail to find incomplete string', function() {
-        zat.loadProg(prog);
-
         zat.load('HELPER\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -256,8 +201,6 @@ start:
     });
 
     it('should loop', function() {
-        zat.loadProg(prog);
-
         let called = false;
         zat.mockCall('read_line', () => {
             zat.load('HELP\0', 'line');
@@ -273,8 +216,6 @@ start:
     });
 
     it('should make letters upper case', function() {
-        zat.loadProg(prog);
-
         zat.z80.a = '`'.charCodeAt(0);
         zat.call('to_upper');
         expect(zat.z80.a).toBe('`'.charCodeAt(0));
@@ -301,8 +242,6 @@ start:
     });
 
     it('should find lower case string', function() {
-        zat.loadProg(prog);
-
         zat.load('peek\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('lookup_command');
@@ -311,8 +250,6 @@ start:
     });
 
     it('should convert bcd to number string', function() {
-        zat.loadProg(prog);
-
         zat.z80.a = 0x45;
         zat.z80.hl = zat.getAddress('line');
         zat.call('bcd_to_num');
@@ -321,8 +258,6 @@ start:
     });
 
     it('should convert string to bcd', function() {
-        zat.loadProg(prog);
-
         zat.load('45', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('num_to_bcd');
@@ -352,8 +287,6 @@ start:
     });
 
     it('should fail to convert string to bcd', function() {
-        zat.loadProg(prog);
-
         zat.load('/5', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('num_to_bcd');
@@ -380,8 +313,6 @@ start:
     });
 
     it('should skip spaces', function() {
-        zat.loadProg(prog);
-
         zat.load('BOB', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('skip_spaces');
@@ -398,8 +329,6 @@ start:
     });
 
     it('should parse time', function() {
-        zat.loadProg(prog);
-
         var writeLineCalled = false;
         zat.mockStep('write_line', () => {
                 writeLineCalled = true;
@@ -460,8 +389,6 @@ start:
     });
 
     it('should parse hex number', function() {
-        zat.loadProg(prog);
-
         zat.load('0\0', 'line');
         zat.z80.hl = zat.getAddress('line');
         zat.call('parse_hex');
@@ -545,8 +472,6 @@ start:
     });
 
     it('should format 2 digit hex', function() {
-        zat.loadProg(prog);
-
         zat.load('00X', 'line')
 
         zat.z80.a = 0x12;
@@ -565,8 +490,6 @@ start:
     });
 
     it('should dump memory', function() {
-        zat.loadProg(prog);
-
         zat.load([0,1,2,3,4,5,6,7,0xf,0xe,0xd,0xc,0xb,0xa,9,8], 0xf000);
         zat.load([0xf,0xe,0xd,0xc,0xb,0xa,9,8,0,1,2,3,4,5,6,7], 0xf010);
         zat.load(' f000,1f\0', 'line');
@@ -584,8 +507,6 @@ start:
     });
 
     it('should dump memory on 16 byte page boundaries', function() {
-        zat.loadProg(prog);
-
         zat.load([0,1,2,3,4,5,6,7,0xf,0xe,0xd,0xc,0xb,0xa,9,8], 0xf000);
         zat.load([0xf,0xe,0xd,0xc,0xb,0xa,9,8,0,1,2,3,4,5,6,7], 0xf010);
         zat.load(' f005,15\0', 'line');
@@ -603,8 +524,6 @@ start:
     });
 
     it('should dump ascii chars', function() {
-        zat.loadProg(prog);
-
         zat.load(stringToBytes('This is a test. '), 0xf000);
         zat.load([0x30,0x2f,0x7e,0x7f,0x31,0x32,0x33,0x34, 0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48], 0xf010);
         zat.load(' f005,15\0', 'line');
@@ -622,8 +541,6 @@ start:
     });
 
     it('should do an IN', function() {
-        zat.loadProg(prog);
-
         let ioSpy = new IoSpy(zat)
             .onIn(0x10, 0x25);
 
@@ -644,8 +561,6 @@ start:
     });
 
     it('should set date', function() {
-        zat.loadProg(prog);
-
         zat.load(' 2017-06-01\0', 'line');
         let called = 0;
         zat.mockCall('write_line', function() {
@@ -662,14 +577,11 @@ start:
     });
 
     it('should copy to rom', function() {
-        zat.loadProg(prog);
-
         zat.load(' 1000,2000,10\0', 'line');
         zat.load('0123456789abcdef', 0x1000);
         zat.load('XXXXXXXXXXXXXXXX', 0x2000);
         zat.z80.de = zat.getAddress('line');
         zat.call('cmd_romcopy');
-
         expect(zat.getMemory(0x2000, 0x10)).toEqual(stringToBytes('0123456789abcdef'));
 
         zat.load(' 1010,2000,10\0', 'line');
@@ -677,17 +589,15 @@ start:
         zat.load('XXXXXXXXXXXXXXXX', 0x2000);
         zat.z80.de = zat.getAddress('line');
         zat.call('cmd_romcopy');
-
         expect(zat.getMemory(0x2000, 0x10)).toEqual(stringToBytes('0123456789abcdef'));
+
         zat.load(' 1010,2000,40\0', 'line');
         zat.load('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]', 0x1010);
         zat.load('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 0x2000);
         zat.z80.de = zat.getAddress('line');
         zat.call('cmd_romcopy');
-
         expect(zat.getMemory(0x2000, 0x40)).toEqual(stringToBytes('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'));
 
-        expect(zat.getMemory(0x2000, 0x10)).toEqual(stringToBytes('0123456789abcdef'));
         zat.load(' 1010,2010,40\0', 'line');
         zat.load('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]', 0x1010);
         zat.load('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 0x2010);

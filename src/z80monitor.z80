@@ -15,16 +15,17 @@ semicolon: equ 0x3b ; ';' causes problems in asm80 parser
 
 .phase 0
 start:
-    ld sp,$6000
-    ld a,1
+    ld sp,$6000                 ; set SP to 6000
+    ld a,1                      ; make sure banks 1,2 and 3 are RAM
     out (1),a
     inc a
     out (2),a
     inc a
     out (3),a    
-    ld hl,boot_msg
+    ld hl,boot_msg              ; write message
     call write_line
     call clear_input_buffer
+    call setup_buffers
 loop:
     ld a, '!'
     call write_char
@@ -153,8 +154,6 @@ read_char:
     jp nz,read_char
     in a,(ft245)
     ret
-
-line: ds 256
 
 ; pass in HL = address of the string to look up
 ; return DE = address of command to jump to
@@ -357,9 +356,6 @@ next:
     jp next
 .endblock
 
-timestr: db 'TIME: 00:00:00\n', 0
-datestr: db 'DATE: 0000-00-00\n', 0
-
 ; store an address with MSB first, with bit 7 set to 1
 .macro djump
     db (%%1 / $100) + $80
@@ -531,7 +527,6 @@ no_time:
     ret
 no_time_msg: db 'No time specified\n', 0
 .endblock
-bcd_time: db 'xxx'
 
 ; HL = address of date, in YYYY-MM-DD format
 ; returns with bcd date at bcd_date
@@ -610,7 +605,6 @@ no_date:
     ret
 no_date_msg: db 'No date specified\n', 0
 .endblock
-bcd_date: db 'xxxx'
 
 ; HL = address of 1-4 digits of hex, terminated with null, space or comma
 ; BC = number
@@ -721,16 +715,15 @@ cmd_in:
     jp nz,error
 
     in a,(c)
-    ld hl,value
+    ld hl,hex_value
     call format_hex_2
 
-    ld hl,value
+    ld hl,hex_value
     jp write_line
 error:
     ld hl,error_msg
     jp write_line
 error_msg: db 'Error\n',0
-value: db '00\n',0
 .endblock
 
 cmd_out:
@@ -848,16 +841,15 @@ cmd_peek:
     jp nz,error
 
     ld a,(bc)
-    ld hl,value
+    ld hl,hex_value
     call format_hex_2
 
-    ld hl,value
+    ld hl,hex_value
     jp write_line
 error:
     ld hl,error_msg
     jp write_line
 error_msg: db 'Error\n',0
-value: db '00\n',0
 .endblock
 
 cmd_jp:
@@ -1086,10 +1078,6 @@ error:
     ld hl,error_msg
     jp write_line
 error_msg: db 'Error\n',0
-size: db 0,0
-source: db 0,0
-dest: db 0,0
-pagesize: db 0,0
 .endblock
 
 cmd_dump:
@@ -1215,7 +1203,6 @@ error:
     ld hl,error_msg
     jp write_line
 error_msg: db 'Error\n',0
-value: db '00\n',0
 .endblock
 dumpline: db '                                                                         ',0
 
@@ -1267,6 +1254,39 @@ commands:
     db 'ROMCOPY'
     djump cmd_romcopy
     djump cmd_error
+
+setup_buffers:
+    ld de,timestr
+    ld hl,init_timestr
+    ld bc,init_datestr - init_timestr
+    ldir
+    ld de,datestr
+    ld hl,init_datestr
+    ld bc,init_hex_value - init_datestr
+    ldir
+    ld de,hex_value
+    ld hl,init_hex_value
+    ld bc,init_end - init_hex_value
+    ldir
+    ret
+init_timestr: db 'TIME: 00:00:00\n', 0
+init_datestr: db 'DATE: 0000-00-00\n', 0
+init_hex_value: db '00\n',0
+init_end: db 0
+
+
+.phase $4000
+line: ds 256
+timestr: db 'TIME: 00:00:00\n', 0
+datestr: db 'DATE: 0000-00-00\n', 0
+bcd_time: db 'xxx'
+bcd_date: db 'xxxx'
+hex_value: db '00\n',0
+size: db 0,0
+source: db 0,0
+dest: db 0,0
+pagesize: db 0,0
+
 
 end:
 .dephase
