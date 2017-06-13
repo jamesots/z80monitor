@@ -381,8 +381,8 @@ help_msg: db 'Available commands:\n'
     db '  SETDATE yyyy-mm-dd\n'
     db '  COPY src',comma,'dest',comma,'len\n'
     db '  ROMCOPY src',comma,'dest',comma,'len\n'
-    db '  LOAD\n'
-    db '  SAVE\n', 0
+    db '  LOAD dest',comma,'dest\n'
+    db 0
 
 cmd_date:
 cmd_time:
@@ -1204,13 +1204,37 @@ error:
     jp write_line
 error_msg: db 'Error\n',0
 .endblock
-dumpline: db '                                                                         ',0
 
 cmd_load:
-cmd_save:
-    ld hl,not_implemented_msg
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+
+    push bc
+
+_check_comma:
+    ld a,comma
+    cp (hl)
+    jp nz,error
+
+    inc hl
+    call parse_hex
+    xor a
+    cp e
+    jp nz,error
+error:
+    ld hl,error_msg
     jp write_line
-not_implemented_msg: db 'Not implemented yet\n', 0
+error_msg: db 'Error\n',0
+.endblock
 
 cmd_error:
     ld hl, unknown_command
@@ -1247,8 +1271,6 @@ commands:
     djump cmd_setdate
     db 'LOAD'
     djump cmd_load
-    db 'SAVE'
-    djump cmd_save
     db 'COPY'
     djump cmd_copy
     db 'ROMCOPY'
@@ -1266,12 +1288,17 @@ setup_buffers:
     ldir
     ld de,hex_value
     ld hl,init_hex_value
-    ld bc,init_end - init_hex_value
+    ld bc,init_dumpline - init_hex_value
+    ldir
+    ld de,dumpline
+    ld hl,init_dumpline
+    ld bc,init_end - init_dumpline
     ldir
     ret
 init_timestr: db 'TIME: 00:00:00\n', 0
 init_datestr: db 'DATE: 0000-00-00\n', 0
 init_hex_value: db '00\n',0
+init_dumpline: db '                                                                         ',0
 init_end: db 0
 
 
@@ -1286,7 +1313,7 @@ size: db 0,0
 source: db 0,0
 dest: db 0,0
 pagesize: db 0,0
-
+dumpline: db '                                                                         ',0
 
 end:
 .dephase
