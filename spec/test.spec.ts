@@ -1,4 +1,4 @@
-import { Zat, IoSpy, StepMock, StepResponse, customMatchers, stringToBytes, hex16, Compiler, CompiledProg, Z80 } from 'zat';
+import { Zat, IoSpy, StepResponse, customMatchers, stringToBytes, hex16, Compiler, CompiledProg, Z80 } from 'zat';
 import 'zat/lib/matchers';
 
 function bytesToString(bytes: number[]): string {
@@ -403,6 +403,7 @@ start:
         var writeLineCalled = false;
         zat.mockStep('write_line', () => {
                 writeLineCalled = true;
+                return StepResponse.RUN;
             });
 
         zat.load('00:00:00', 'line');
@@ -659,4 +660,40 @@ start:
         expect(called).toBe(1);
         expect(zat.getMemory('bcd_date', 4)).toEqual([0x20, 0x17, 0x06, 0x01]);
     });
+
+    it('should copy to rom', function() {
+        zat.loadProg(prog);
+
+        zat.load(' 1000,2000,10\0', 'line');
+        zat.load('0123456789abcdef', 0x1000);
+        zat.load('XXXXXXXXXXXXXXXX', 0x2000);
+        zat.z80.de = zat.getAddress('line');
+        zat.call('cmd_romcopy');
+
+        expect(zat.getMemory(0x2000, 0x10)).toEqual(stringToBytes('0123456789abcdef'));
+
+        zat.load(' 1010,2000,10\0', 'line');
+        zat.load('0123456789abcdef', 0x1010);
+        zat.load('XXXXXXXXXXXXXXXX', 0x2000);
+        zat.z80.de = zat.getAddress('line');
+        zat.call('cmd_romcopy');
+
+        expect(zat.getMemory(0x2000, 0x10)).toEqual(stringToBytes('0123456789abcdef'));
+        zat.load(' 1010,2000,40\0', 'line');
+        zat.load('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]', 0x1010);
+        zat.load('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 0x2000);
+        zat.z80.de = zat.getAddress('line');
+        zat.call('cmd_romcopy');
+
+        expect(zat.getMemory(0x2000, 0x40)).toEqual(stringToBytes('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'));
+
+        expect(zat.getMemory(0x2000, 0x10)).toEqual(stringToBytes('0123456789abcdef'));
+        zat.load(' 1010,2010,40\0', 'line');
+        zat.load('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]', 0x1010);
+        zat.load('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 0x2010);
+        zat.z80.de = zat.getAddress('line');
+        zat.call('cmd_romcopy');
+
+        expect(zat.getMemory(0x2010, 0x40)).toEqual(stringToBytes('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'));
+    })
 });

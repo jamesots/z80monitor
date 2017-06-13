@@ -15,7 +15,7 @@ semicolon: equ 0x3b ; ';' causes problems in asm80 parser
 
 .phase 0
 start:
-    ld sp,$0000
+    ld sp,$6000
     ld a,1
     out (1),a
     inc a
@@ -384,6 +384,7 @@ help_msg: db 'Available commands:\n'
     db '  SETTIME hh:mm:ss\n'
     db '  SETDATE yyyy-mm-dd\n'
     db '  COPY src',comma,'dest',comma,'len\n'
+    db '  ROMCOPY src',comma,'dest',comma,'len\n'
     db '  LOAD\n'
     db '  SAVE\n', 0
 
@@ -964,6 +965,133 @@ error:
 error_msg: db 'Error\n',0
 .endblock
 
+cmd_romcopy:
+    ; ROMCOPY FROM,TO,LENGTH
+    ; at the end of every 64 byte page, wait for write to complete
+.block
+    ld h,d
+    ld l,e
+    call skip_spaces
+    xor a
+    cp c
+    jp z,error
+    call parse_hex
+    xor a               ; check error code
+    cp e
+    jp nz,error
+    ld (source),bc
+
+_check_comma1:
+    ld a,comma
+    cp (hl)
+    jp nz,error
+
+    inc hl
+    call parse_hex
+    xor a
+    cp e
+    jp nz,error
+    ld (dest),bc
+
+_check_comma2:
+    ld a,comma
+    cp (hl)
+    jp nz,error
+
+    inc hl
+    call parse_hex
+    xor a
+    cp e
+    jp nz,error
+    
+    ld (size),bc
+
+    
+    ; now we need to work out how many bytes until the next 64 byte page boundary
+    ; then copy that number of bytes
+    ; then wait for write to finish
+    ; then copy next 64 bytes (or however many are left, whichever is smallest)
+    ; etc
+_calc_offset:
+    ld de,(dest)
+    ld a,e     
+    and $3f                 ; a = offset = dest AND $3f
+_calc_bytes_left_on_page:
+    ld h,a
+    ld a,$40
+    sub h
+    ld h,a                  ; h = number of bytes left in this page
+
+_check_size_high:
+    xor a
+    cp b                    ; if high byte of size isn't zero, 
+    jp nz,h_is_pagesize     ; use h as the page size
+
+_check_size_low:
+    ld a,h
+    cp c                  ; if low byte of size > number of bytes left on page,
+    jp c,h_is_pagesize      ; use h as the page size
+_size_is_small:
+    ld h,c                  ; otherwise use low byte of size as page size
+
+h_is_pagesize:              ; this is also the start of the loop
+    ld b,0
+    ld c,h
+    ld (pagesize),bc
+
+    ld hl,(source)
+    ld de,(dest)    
+_do_the_copy:
+    ldir
+    ld (source),hl
+
+    ld hl,(dest)
+    ld (dest),de
+check_write:
+    ld a,(hl)
+    cp (hl)
+    jp nz,check_write
+
+    ld hl,(size)
+    ld bc,(pagesize)
+    xor a
+    sbc hl,bc
+    cp h
+    jp nz,more
+    cp l
+    jp z,copied
+more:
+    ld (size),hl
+
+    ld bc,(size)
+    xor a
+    cp b
+    jp nz,pagesize_40
+    ld a,c
+    and $c0
+    cp 0
+    jp nz,pagesize_40
+    ld h,c
+    jp h_is_pagesize
+pagesize_40:
+    ld h,$40
+    jp h_is_pagesize
+
+copied:
+    ld hl,copied_msg
+    jp write_line
+    
+copied_msg: db 'Copied\n',0
+error:
+    ld hl,error_msg
+    jp write_line
+error_msg: db 'Error\n',0
+size: db 0,0
+source: db 0,0
+dest: db 0,0
+pagesize: db 0,0
+.endblock
+
 cmd_dump:
 .block
     ld h,d
@@ -1136,6 +1264,8 @@ commands:
     djump cmd_save
     db 'COPY'
     djump cmd_copy
+    db 'ROMCOPY'
+    djump cmd_romcopy
     djump cmd_error
 
 end:
