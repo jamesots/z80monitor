@@ -1230,6 +1230,20 @@ _check_comma:
     xor a
     cp e
     jp nz,error
+
+    pop hl
+next_char:
+    call read_char
+    ld (hl),a
+    inc hl
+    dec bc
+    xor a
+    cp b
+    jp nz,next_char
+    cp c
+    jp nz,next_char
+    ret
+
 error:
     ld hl,error_msg
     jp write_line
