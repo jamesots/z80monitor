@@ -611,5 +611,26 @@ describe('z80monitor', function() {
         zat.z80.de = zat.getAddress('line');
         zat.call('cmd_romcopy');
         expect(zat.getMemory(0x2000, 0x100)).toEqual(stringToBytes('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'));
-    })
+    });
+
+    it('should compare', function() {
+        zat.load(' 1000,2000,5\0', 'line');
+        zat.load('12345', 0x1000);
+        zat.load('12345', 0x2000);
+        let called = 0;
+        zat.mockCall('different', function() {
+            called++;
+            return StepResponse.SKIP;
+        });
+        zat.z80.de = zat.getAddress('line');
+        zat.call('cmd_compare');
+        expect(called).toBe(0);
+
+        zat.load('12345', 0x1000);
+        zat.load('12x45', 0x2000);
+        called = 0;
+        zat.z80.de = zat.getAddress('line');
+        zat.call('cmd_compare');
+        expect(called).toBe(1);
+    });
 });
