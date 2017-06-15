@@ -16,7 +16,15 @@ semicolon: equ 0x3b ; ';' causes problems in asm80 parser
 .phase 0
 start:
     ld sp,$6000                 ; set SP to 6000
-    ld a,1                      ; make sure banks 1,2 and 3 are RAM
+    xor a                       ; put bank 0 at $4000
+    out (1),a                   ; and copy the ROM there
+    ld hl,$0000
+    ld de,$4000
+    ld bc,$4000
+    ldir
+    xor a                       ; then switch everything to RAM
+    out (0),a
+    inc a
     out (1),a
     inc a
     out (2),a
