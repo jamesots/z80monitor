@@ -82,11 +82,13 @@ read_line_char:
     push hl
     call write_line
     pop de
+    push hl
     or a
     sbc hl,de
     ld a,$ff
     sub l
     ld b,a
+    pop hl
     jp read_line_char
 check_lf:
     cp chr_lf

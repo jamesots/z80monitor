@@ -71,10 +71,10 @@ describe('z80monitor', function() {
                 count++;
             }
             return undefined;
-        }
+        };
         zat.onIoWrite = (port, value) => {
             values.push([port & 0xff, value]);
-        }
+        };
         zat.call('sound_bell');
         expect(values).toEqual([[6, 0xff], [6, 0]]);
         expect(count).toEqual(0x100 * 0x10);
@@ -97,7 +97,7 @@ describe('z80monitor', function() {
             }
             // ...otherwise use the spy
             return readSpy(port);
-        }
+        };
         zat.onIoWrite = writeSpy;
         zat.call('read_line');
         expect(zat.getMemory('line', 6)).toEqual(stringToBytes('hello\0'));
@@ -110,7 +110,7 @@ describe('z80monitor', function() {
             .onIn(['ft245_status', 0], ['ft245', 'h'], ['ft245_status', 0]) // read 'h', check we can write
             .onOut(['ft245', 'h']) // write 'h'
             .onIn(['ft245_status', 0], ['ft245', '\r'], ['ft245_status', 0]) // read CR, check we can write
-            .onOut(['ft245', '\r'])  // write CR
+            .onOut(['ft245', '\r']);  // write CR
 
         zat.onIoRead = ioSpy.readSpy();
         zat.onIoWrite = ioSpy.writeSpy();
@@ -126,7 +126,7 @@ describe('z80monitor', function() {
         });
         let index = 0;
         zat.mockCall('read_char', function() {
-            zat.z80.a = [3, 13][index++]
+            zat.z80.a = [3, 13][index++];
         });
         zat.call('read_line');
 
@@ -472,7 +472,7 @@ describe('z80monitor', function() {
     });
 
     it('should format 2 digit hex', function() {
-        zat.load('00X', 'line')
+        zat.load('00X', 'line');
 
         zat.z80.a = 0x12;
         zat.z80.hl = zat.getAddress('line');
@@ -498,7 +498,7 @@ describe('z80monitor', function() {
             expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
                 .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 ................\n',
                 'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 ................\n'][called++]);
-        })
+        });
         zat.z80.de = zat.getAddress('line');
 
         zat.call('cmd_dump');
@@ -515,7 +515,7 @@ describe('z80monitor', function() {
             expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
                 .toBe(['F000 00 01 02 03 04 05 06 07 0F 0E 0D 0C 0B 0A 09 08 ................\n',
                 'F010 0F 0E 0D 0C 0B 0A 09 08 00 01 02 03 04 05 06 07 ................\n'][called++]);
-        })
+        });
         zat.z80.de = zat.getAddress('line');
 
         zat.call('cmd_dump');
@@ -532,7 +532,7 @@ describe('z80monitor', function() {
             expect(getNullTerminatedString(zat, zat.getAddress('dumpline')))
                 .toBe(['F000 54 68 69 73 20 69 73 20 61 20 74 65 73 74 2E 20 This is a test. \n',
                 'F010 30 2F 7E 7F 31 32 33 34 41 42 43 44 45 46 47 48 0/~.1234ABCDEFGH\n'][called++]);
-        })
+        });
         zat.z80.de = zat.getAddress('line');
 
         zat.call('cmd_dump');
@@ -633,4 +633,79 @@ describe('z80monitor', function() {
         zat.call('cmd_compare');
         expect(called).toBe(1);
     });
-});
+
+    it('should start up without modifying low memory', function() {
+        const startingMemory = zat.getMemory(0,0x1000);
+        let first = true;
+        zat.onIoRead = (port) => {
+            if ((port & 0xff) === zat.getAddress('ft245_status')) {
+                // the first time it is clearing the buffer - it keeps
+                // reading until data isn't ready
+                const value = first ? 1 : 0;
+                first = !first;
+                return value;
+            }
+        };
+        zat.setBreakpoint('loop');
+        zat.run(0);
+
+        expect(zat.getMemory(0, 0x1000)).toEqual(startingMemory);
+    });
+
+    it('should execute copy command without modifying low memory', function() {
+        const startingMemory = zat.getMemory(0,0x1000);
+        let first = true;
+        const readSpy = new IoSpy(zat)
+            .onIn('ft245', '\x08copp\x08y 0,8000,1000\r') // add some deletes in here
+            .readSpy();
+        zat.onIoRead = (port) => {
+            if ((port & 0xff) === zat.getAddress('ft245_status')) {
+                // the first time it is clearing the buffer - it keeps
+                // reading until data isn't ready
+                const value = first ? 1 : 0;
+                first = !first;
+                return value;
+            }
+            return readSpy(port);
+        };
+        let cmdCalled = false;
+        zat.mockStep('cmd_copy', () => {
+            cmdCalled = true;
+            return StepResponse.RUN;
+        })
+        zat.setBreakpoint('end_loop');
+        zat.run(0);
+
+        expect(cmdCalled).toBe(true);
+        expect(zat.getMemory(0, 0x1000)).toEqual(startingMemory);
+    });
+
+
+    it('should execute last command without modifying low memory', function() {
+        const startingMemory = zat.getMemory(0,0x1000);
+        let first = true;
+        const readSpy = new IoSpy(zat)
+            .onIn('ft245', '\x03\r') // add some deletes in here
+            .readSpy();
+        zat.onIoRead = (port) => {
+            if ((port & 0xff) === zat.getAddress('ft245_status')) {
+                // the first time it is clearing the buffer - it keeps
+                // reading until data isn't ready
+                const value = first ? 1 : 0;
+                first = !first;
+                return value;
+            }
+            return readSpy(port);
+        };
+        let cmdCalled = false;
+        zat.load('copy 0,8000,1000\0', 'line')
+        zat.mockStep('cmd_copy', () => {
+            cmdCalled = true;
+            return StepResponse.RUN;
+        })
+        zat.setBreakpoint('end_loop');
+        zat.run(0);
+
+        expect(cmdCalled).toBe(true);
+        expect(zat.getMemory(0, 0x1000)).toEqual(startingMemory);
+    });});
