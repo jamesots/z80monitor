@@ -1,0 +1,57 @@
+sd_data: equ 10
+sd_status: equ 11
+
+.phase $8000
+    ld a,1
+    out (sd_status),a   ; set cs to 1
+    ld b,10
+init:
+    ld a,$ff
+    call write_a
+    djnz init
+
+    ld a,0
+    out (sd_status),a   ; set cs to 0
+
+    ld hl,cmd0
+    call send_command
+    ld (response),a
+
+    ld a,1
+    out (sd_status),a   ; set cs to 1
+
+    ret
+
+response:
+    db 0
+
+cmd0:
+    db $40,0,0,0,0,$95
+
+send_command:
+    ld b,6
+send_loop:
+    ld a,(hl)
+    call write_a
+    inc hl
+    djnz send_loop
+    call read_response
+    ret
+
+read_response:
+    ld a,$ff
+    call write_a
+    in a,(sd_data)
+    bit 7,a
+    jp nz,read_response
+    ret
+
+    
+write_a:
+    out (sd_data),a
+    ; fall through to wait_for_ready
+wait_for_ready:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait_for_ready
+    ret
