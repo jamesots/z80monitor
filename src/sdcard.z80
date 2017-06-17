@@ -20,13 +20,69 @@ init:
     ld a,1
     out (sd_status),a   ; set cs to 1
 
+    ld a,0
+    out (sd_status),a   ; set cs to 0
+
+    ld hl,cmd8
+    call send_command
+    ld (response),a
+
+    ld b,4
+    ld hl,response
+    call read_bytes
+
+    ld a,1
+    out (sd_status),a   ; set cs to 1
+
+    ; should check responses are correct, in proper sd card driver
+
+send_acmd41:
+    ld a,0
+    out (sd_status),a
+    ld hl,acmd
+    call send_command
+
+    ld hl,acmd41
+    call send_command
+    ld (response),a
+
+    ld a,1
+    out (sd_status),a
+
+    ld a,(response)
+    cp 0
+    jp nz,send_acmd41
+
+    ld a,0
+    out (sd_status),a
+    ld hl,cmd58
+    call send_command
+
+    ld b,4
+    ld hl,response
+    call read_bytes
+
+    ld a,1
+    out (sd_status),a
+
     ret
 
 response:
-    db 0
+    db 0,0,0,0,0,0,0,0
 
 cmd0:
     db $40,0,0,0,0,$95
+cmd8:
+    db $48,0,0,1,$AA,$87    ; 2.7-3.6V
+acmd:
+    db $77,0,0,0,0,$01   ; cmd55 - next command is and acmd
+acmd41:
+    db $69,$40,0,0,0,$01
+cmd58:
+    db $7A,0,0,0,0,$01
+
+cmd16:  ; read single block
+    db $52,0,0,0,0,$01      ; needs a data address
 
 send_command:
     ld b,6
@@ -38,6 +94,17 @@ send_loop:
     call read_response
     ret
 
+; b = number of bytes to read
+; hl = address to store bytes
+read_bytes:
+    ld a,$ff
+    call write_a
+    in a,(sd_data)
+    ld (hl),a
+    inc hl
+    djnz read_bytes
+    ret
+
 read_response:
     ld a,$ff
     call write_a
@@ -46,7 +113,6 @@ read_response:
     jp nz,read_response
     ret
 
-    
 write_a:
     out (sd_data),a
     ; fall through to wait_for_ready
