@@ -65,10 +65,42 @@ send_acmd41:
     ld a,1
     out (sd_status),a
 
+    ld a,0
+    out (sd_status),a
+    ld hl,cmd17
+    call send_command
+
+wait_for_data:
+    ld a,$ff
+    call write_a
+    in a,(sd_data)
+    cp $fe
+    jp nz,wait_for_data
+
+    ld b,0
+    ; ld hl,block0
+    ld hl,$9000
+    call read_bytes
+    ld b,0
+    ; ld hl,block1
+    ld hl,$9100
+    call read_bytes
+
+    ld a,1
+    out (sd_status),a
+
+    ; we now have the MBR (if we read sector 0)
+    ; my card has the FAT at sector $20
+
     ret
 
 response:
     db 0,0,0,0,0,0,0,0
+
+block0:
+    equ $9000
+block1:
+    equ $9100
 
 cmd0:
     db $40,0,0,0,0,$95
@@ -81,8 +113,8 @@ acmd41:
 cmd58:
     db $7A,0,0,0,0,$01
 
-cmd16:  ; read single block
-    db $52,0,0,0,0,$01      ; needs a data address
+cmd17:  ; read single block
+    db $51,0,0,0,$20,$01      ; needs a data address
 
 send_command:
     ld b,6
