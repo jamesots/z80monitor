@@ -1,78 +1,73 @@
 sd_data: equ 10
 sd_status: equ 11
 
-.macro cs_low
-    ld a,0
+.macro sd_set_cs
+    ld a,%%1
     out (sd_status),a   ; set cs to 0
 .endm
 
-.macro cs_high
-    ld a,1
-    out (sd_status),a   ; set cs to 1
-.endm
-
 .phase $8000
-    cs_low
+    sd_set_cs 0
     ld b,10
 init:
     ld a,$ff
-    call write_a
+    call sd_write_a
     djnz init
 
-    cs_low
+    sd_set_cs 0
 
     ld hl,cmd0
-    call send_command
+    call sd_send_command
     ld (response),a
 
-    cs_high
+    sd_set_cs 1
 
-    cs_low
+    sd_set_cs 0
 
     ld hl,cmd8
-    call send_command
+    call sd_send_command
     ld (response),a
 
     ld b,4
     ld hl,response
-    call read_bytes
+    call sd_read_bytes
 
-    cs_high
+    sd_set_cs 1
 
     ; should check responses are correct, in proper sd card driver
 
 send_acmd41:
-    cs_low
+    sd_set_cs 0
     ld hl,acmd
-    call send_command
+    call sd_send_command
 
     ld hl,acmd41
-    call send_command
+    call sd_send_command
     ld (response),a
 
-    cs_high
+    sd_set_cs 1
 
     ld a,(response)
     cp 0
     jp nz,send_acmd41
 
-    cs_low
+    sd_set_cs 0
     ld hl,cmd58
-    call send_command
+    call sd_send_command
 
     ld b,4
     ld hl,response
-    call read_bytes
+    call sd_read_bytes
 
-    cs_high
+    sd_set_cs 1
 
-    cs_low
+    sd_set_cs 0
     ld hl,cmd17
-    call send_command
+    call sd_send_command
 
 wait_for_data:
     ld a,$ff
-    call write_a
+    call sd_write_a
     in a,(sd_data)
     cp $fe
     jp nz,wait_for_data
@@ -80,13 +75,13 @@ wait_for_data:
     ld b,0
     ; ld hl,block0
     ld hl,$9000
-    call read_bytes
+    call sd_read_bytes
     ld b,0
     ; ld hl,block1
     ld hl,$9100
-    call read_bytes
+    call sd_read_bytes
 
-    cs_high
+    sd_set_cs 1
 
     ; we now have the MBR (if we read sector 0)
     ; my card has the FAT at sector $20
@@ -115,40 +110,42 @@ cmd58:
 cmd17:  ; read single block
     db $51,0,0,0,$20,$01      ; needs a data address
 
-send_command:
+sd_send_command:
+.block
     ld b,6
 send_loop:
     ld a,(hl)
-    call write_a
+    call sd_write_a
     inc hl
     djnz send_loop
-    call read_response
+    call sd_read_response
     ret
+.endblock
 
 ; b = number of bytes to read
 ; hl = address to store bytes
-read_bytes:
+sd_read_bytes:
     ld a,$ff
-    call write_a
+    call sd_write_a
     in a,(sd_data)
     ld (hl),a
     inc hl
-    djnz read_bytes
+    djnz sd_read_bytes
     ret
 
-read_response:
+sd_read_response:
     ld a,$ff
-    call write_a
+    call sd_write_a
     in a,(sd_data)
     bit 7,a
-    jp nz,read_response
+    jp nz,sd_read_response
     ret
 
-write_a:
+sd_write_a:
     out (sd_data),a
     ; fall through to wait_for_ready
-wait_for_ready:
+sd_wait_for_ready:
     in a,(sd_status)
     bit 2,a
-    jp nz,wait_for_ready
+    jp nz,sd_wait_for_ready
     ret
