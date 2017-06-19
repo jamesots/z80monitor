@@ -61,6 +61,9 @@ send_acmd41:
 
     sd_set_cs 1
 
+    jp write_block
+
+read_block:
     sd_set_cs 0
     ld hl,cmd17
     call sd_send_command
@@ -88,6 +91,28 @@ wait_for_data:
 
     ret
 
+
+write_block:
+    sd_set_cs 0
+    ld hl,cmd24
+    call sd_send_command
+
+    ld a,$fe  ; start block token
+    call sd_write_a
+
+    ld b,0
+    ld hl,$9000
+    call sd_write_bytes
+
+    ld b,0
+    ld hl,$9100
+    call sd_write_bytes
+
+    call sd_read_response
+    ld (response),a
+
+    ret
+
 response:
     db 0,0,0,0,0,0,0,0
 
@@ -108,7 +133,9 @@ cmd58:
     db $7A,0,0,0,0,$01
 
 cmd17:  ; read single block
-    db $51,0,0,0,$20,$01      ; needs a data address
+    db $51,0,0,0,0,$01      ; needs a data address
+cmd24:  ; write single block
+    db $58,0,0,0,0,$01
 
 sd_send_command:
 .block
@@ -131,6 +158,15 @@ sd_read_bytes:
     ld (hl),a
     inc hl
     djnz sd_read_bytes
+    ret
+
+; b = number of bytes to write
+; hl = address of bytes to write
+sd_write_bytes:
+    ld a,(hl)
+    call sd_write_a
+    inc hl
+    djnz sd_write_bytes
     ret
 
 sd_read_response:
