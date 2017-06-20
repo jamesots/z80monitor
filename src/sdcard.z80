@@ -1,28 +1,28 @@
 sd_data: equ 10
 sd_status: equ 11
 
-.macro sd_set_cs
+.macro sd_set_status
     ld a,%%1
-    out (sd_status),a   ; set cs to 0
+    out (sd_status),a
 .endm
 
 .phase $8000
-    sd_set_cs 0
+    sd_set_status 1
     ld b,10
 init:
     ld a,$ff
     call sd_write_a
     djnz init
 
-    sd_set_cs 0
+    sd_set_status 0
 
     ld hl,cmd0
     call sd_send_command
     ld (response),a
 
-    sd_set_cs 1
+    sd_set_status 1
 
-    sd_set_cs 0
+    sd_set_status 0
 
     ld hl,cmd8
     call sd_send_command
@@ -32,12 +32,12 @@ init:
     ld hl,response
     call sd_read_bytes
 
-    sd_set_cs 1
+    sd_set_status 1
 
     ; should check responses are correct, in proper sd card driver
 
 send_acmd41:
-    sd_set_cs 0
+    sd_set_status 0
     ld hl,acmd
     call sd_send_command
 
@@ -45,13 +45,13 @@ send_acmd41:
     call sd_send_command
     ld (response),a
 
-    sd_set_cs 1
+    sd_set_status 1
 
     ld a,(response)
     cp 0
     jp nz,send_acmd41
 
-    sd_set_cs 0
+    sd_set_status 0
     ld hl,cmd58
     call sd_send_command
 
@@ -59,12 +59,12 @@ send_acmd41:
     ld hl,response
     call sd_read_bytes
 
-    sd_set_cs 1
+    sd_set_status 1
 
-    jp write_block
+    ; jp write_block
 
 read_block:
-    sd_set_cs 0
+    sd_set_status 2
     ld hl,cmd17
     call sd_send_command
 
@@ -84,7 +84,7 @@ wait_for_data:
     ld hl,$9100
     call sd_read_bytes
 
-    sd_set_cs 1
+    sd_set_status 3
 
     ; we now have the MBR (if we read sector 0)
     ; my card has the FAT at sector $20
@@ -93,7 +93,7 @@ wait_for_data:
 
 
 write_block:
-    sd_set_cs 0
+    sd_set_status 0
     ld hl,cmd24
     call sd_send_command
 
