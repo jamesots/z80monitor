@@ -1,42 +1,101 @@
+ft245: equ 8
+ft245_status: equ 9
+bell: equ 6
 sd_data: equ 10
 sd_status: equ 11
 
-cdisk: equ $4
+msize: equ 62
 
+bias: equ (msize - 20) * 1024
+ccp: equ $3400 + bias
+bdos: equ ccp + $806
+bios: equ ccp + $1600
+cdisk: equ $4
+iobyte: equ $0003
+
+nsects: equ ((bios - ccp) / 128)
 
 .macro sd_set_cs
     ld a,%%1
     out (sd_status),a   ; set cs to 0
 .endm
 
-org $4a00
+.phase bios
 
-jp boot
-jp wboot
-jp const
-jp conin
-jp conout
-jp list
-jp punch
-jp reader
-jp home
-jp seldsk
-jp settrk
-jp setsec
-jp setdma
-jp read
-jp write
-jp listst
-jp sectran
+    jp boot
+wboote:
+    jp wboot
+    jp const
+    jp conin
+    jp conout
+    jp list
+    jp punch
+    jp reader
+    jp home
+    jp seldsk
+    jp settrk
+    jp setsec
+    jp setdma
+    jp read
+    jp write
+    jp listst
+    jp sectran
 
 boot:
     xor a
-    ld (iobyte),a
-    ld (cdisk),a
+    ld (iobyte),a   ; set iobyte to 0
+    ld (cdisk),a    ; set current disk to 0
     jp gocpm
 wboot:
+    ; need to read nsects sectors from disk into ccp
     call init_sd_card
-    ret
+    ld sp,$80
+    ld c,0
+    call seldsk     ; select drive A:
+    call home       ; set track to 0
+    ld b,nsects     ; set count to nsects
+    ld c,0          ; set c to be track 0
+    ld d,2          ; start on sector 2, to skip the potential boot sectors
+    ld hl,ccp       ; set destination to ccp
+load1:
+    push bc         ; store count and track
+    push de         ; store sector
+    push hl         ; store destination
+    ld c,d
+    call setsec     ; set sector to the current one
+    pop bc          ; get destination in bc
+    push bc
+    call setdma     ; set dma address so that data is loaded into right place
+    call read       ; load data
+    cp 0            ; check error code
+    jp nz,wboot     ; if error, try again!
+    pop hl          ; get destination again
+    ld de,128       ; add 1 sector
+    add hl,de
+    pop de          ; pop sector
+    pop bc          ; pop count and track
+    dec b           ; decrement count
+    jp z,gocpm      ; if all read, start cpm
+    inc d           ; increment sector
+    jp load1        ; load some more
+
+gocpm:
+    ld a,$03        ; c3 is jp instr
+    ld ($0000),a    ; store 'jp wboot' at 0
+    ld hl,wboote
+    ld ($0001),hl
+
+    ld ($0005),a    ; store 'jp bdos' at 5
+    ld hl,bdos
+    ld ($0006),hl
+
+    ld bc,$80       ; set dma to $80
+    call setdma
+
+    ei              ; enable interrupts
+    ld a,(cdisk)    ; load current disk
+    ld c,a
+    jp ccp          ; start the ccp
 
 init_sd_card:
     sd_set_cs 0
@@ -107,9 +166,9 @@ const_ready:
 conin:
     in a,(ft245_status)
     bit 0,a
-    jp nz,read_char
+    jp nz,conin
     in a,(ft245)
-    res a,7
+    res 7,a
     ret
 
 conout:
@@ -126,9 +185,21 @@ punch:
     ret
 reader:
     ret
+    
 home:
+    ld bc,0
+    ld (track),bc
     ret
+
 seldsk:
+    ld hl,0
+    xor a       ; only one disk - return error if c isn't 0
+    cp c
+    ret z
+
+    ld hl,disk
+    ld (hl),c
+    ld hl,dpb_disk0
     ret
 
 settrk:
@@ -151,8 +222,8 @@ read:
     ld a,(disk)
     ld (cmd_read_block + 2),a
 
-    sd_set_cs 0
-    ld hl,cmd17
+    sd_set_cs 2
+    ld hl,cmd_read_block
     call sd_send_command
 wait_for_data:
     ld a,$ff
@@ -170,7 +241,7 @@ wait_for_data:
     ld hl,buffer + $100
     call sd_read_bytes
 
-    sd_set_cs 1
+    sd_set_cs 3
     ld a,(dma_addr)
     ld d,0
     ld e,a
@@ -196,8 +267,8 @@ write:
     ld de,buffer
     ldir
 
-    sd_set_cs 0
-    ld hl,cmd24
+    sd_set_cs 2
+    ld hl,cmd_write_block
     call sd_send_command
 
     ld a,$fe  ; start block token
@@ -213,6 +284,8 @@ write:
 
     call sd_read_response
     ld (response),a
+
+    sd_set_cs 3
 
     ld a,0
 
@@ -230,30 +303,45 @@ track: dw 0
 sector dw 0
 dma_addr: db $80,80
 
-dpb:
+dpblk:
     dw $FFFF    ; sectors per track
-    db 0        ; block shift factor
-    db $FF      ; block mask
-    db 0        ; null mask
+    db 7        ; block shift factor
+    db 127      ; block mask
+    db 7        ; null mask
     dw $FFFF    ; disk size - 1
-    dw $FFFF    ; directory max
-    db ???      ; alloc 0
-    db ???      ; alloc 1
-    dw ???      ; check size
-    dw 0        ; track size
+    dw $1000    ; directory max
+    db $ff        ; alloc 0
+    db $00        ; alloc 1
+    dw 0        ; check size - number of dir entries to check to see
+                ; if disk has changed. Treat this as a fixed disk for now.
+    dw 1        ; track offset - first track has OS on it
 
 dpb_disk0:
     dw $0000,$0000
     dw $0000,$0000
-    dw dirbf,dpb
-    dw chk03,all03
+    dw dirbf,dpblk
+    dw chk00,all00
+
+response: db 0, 0, 0, 0, 0
+
+cmd0:
+    db $40,0,0,0,0,$95
+cmd8:
+    db $48,0,0,1,$AA,$87    ; 2.7-3.6V
+acmd:
+    db $77,0,0,0,0,$01   ; cmd55 - next command is and acmd
+acmd41:
+    db $69,$40,0,0,0,$01
+cmd58:
+    db $7A,0,0,0,0,$01
+
 
 cmd_read_block:  ; read single block
     db $51,0,0,0,0,$01      ; needs a data address
 cmd_write_block:  ; write single block
     db $58,0,0,0,0,$01
 
-buffer: ds 256
+buffer: ds 512
 
 sd_send_command:
 .block
@@ -303,3 +391,9 @@ sd_read_response:
     bit 7,a
     jp nz,sd_read_response
     ret
+
+dirbf: ds 128
+chk00: ds 16
+all00: ds 31
+
+end:
