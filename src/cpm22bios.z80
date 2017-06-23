@@ -48,20 +48,21 @@ boot:
     jp gocpm
 wboot:
     ; need to read nsects sectors from disk into ccp
-    ld sp,$80
+    ld sp,$0080
     call init_sd_card
     ld c,0
     call seldsk     ; select drive A:
     call home       ; set track to 0
     ld b,nsects     ; set count to nsects
     ld c,0          ; set c to be track 0
-    ld d,2          ; start on sector 2, to skip the potential boot sectors
+    ld de,$0002     ; start on sector 2, to skip the potential boot sectors
     ld hl,ccp       ; set destination to ccp
 load1:
     push bc         ; store count and track
     push de         ; store sector
     push hl         ; store destination
     ld c,d
+    ld b,e
     call setsec     ; set sector to the current one
     pop bc          ; get destination in bc
     push bc
@@ -391,5 +392,17 @@ sd_read_response:
 dirbf: ds 128
 chk00: ds 16
 all00: ds 31
+
+test:
+    ld bc,0
+    call settrk
+    ld bc,0
+    call setsec
+    ld bc,$9000
+    call setdma
+    ld c,0
+    call seldsk
+    call read
+    ret
 
 end:
