@@ -10,7 +10,7 @@ bias: equ (msize - 20) * 1024
 ccp: equ $3400 + bias
 bdos: equ ccp + $806
 bios: equ ccp + $1600
-cdisk: equ $4
+cdisk: equ $0004
 iobyte: equ $0003
 
 nsects: equ ((bios - ccp) / 128)
@@ -48,8 +48,8 @@ boot:
     jp gocpm
 wboot:
     ; need to read nsects sectors from disk into ccp
-    call init_sd_card
     ld sp,$80
+    call init_sd_card
     ld c,0
     call seldsk     ; select drive A:
     call home       ; set track to 0
@@ -80,7 +80,7 @@ load1:
     jp load1        ; load some more
 
 gocpm:
-    ld a,$03        ; c3 is jp instr
+    ld a,$c3        ; c3 is jp instr
     ld ($0000),a    ; store 'jp wboot' at 0
     ld hl,wboote
     ld ($0001),hl
@@ -89,7 +89,7 @@ gocpm:
     ld hl,bdos
     ld ($0006),hl
 
-    ld bc,$80       ; set dma to $80
+    ld bc,$0080       ; set dma to $80
     call setdma
 
     ei              ; enable interrupts
