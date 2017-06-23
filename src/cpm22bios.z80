@@ -195,7 +195,7 @@ seldsk:
     ld hl,0
     xor a       ; only one disk - return error if c isn't 0
     cp c
-    ret z
+    ret nz
 
     ld hl,disk
     ld (hl),c
