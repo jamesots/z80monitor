@@ -99,7 +99,7 @@ gocpm:
     jp ccp          ; start the ccp
 
 init_sd_card:
-    sd_set_cs 0
+    sd_set_cs 1
     ld b,10
 init:
     ld a,$ff
@@ -217,9 +217,15 @@ setdma:
 
 read:
     ld bc,(sector)
-    ld (cmd_read_block + 3),bc
+    ld a,b
+    ld (cmd_read_block + 4),a
+    ld a,c
+    ld (cmd_read_block + 3),a
     ld bc,(track)
-    ld (cmd_read_block + 1),bc
+    ld a,b
+    ld (cmd_read_block + 2),a
+    ld a,c
+    ld (cmd_read_block + 1),a
     ; ld a,(disk)
     ; ld (cmd_read_block + 2),a
 
@@ -253,9 +259,15 @@ wait_for_data:
     ret
 write:
     ld bc,(sector)
-    ld (cmd_write_block + 3),bc
+    ld a,b
+    ld (cmd_write_block + 4),a
+    ld a,c
+    ld (cmd_write_block + 3),a
     ld bc,(track)
-    ld (cmd_write_block + 1),bc
+    ld a,b
+    ld (cmd_write_block + 2),a
+    ld a,c
+    ld (cmd_write_block + 1),a
     ; ld a,(disk)
     ; ld (cmd_write_block + 2),a
 
