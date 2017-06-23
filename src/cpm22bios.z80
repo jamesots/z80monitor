@@ -216,11 +216,11 @@ setdma:
 
 read:
     ld bc,(sector)
-    ld (cmd_read_block + 4),bc
-    ld bc,(track)
     ld (cmd_read_block + 3),bc
-    ld a,(disk)
-    ld (cmd_read_block + 2),a
+    ld bc,(track)
+    ld (cmd_read_block + 1),bc
+    ; ld a,(disk)
+    ; ld (cmd_read_block + 2),a
 
     sd_set_cs 2
     ld hl,cmd_read_block
@@ -242,9 +242,7 @@ wait_for_data:
     call sd_read_bytes
 
     sd_set_cs 3
-    ld a,(dma_addr)
-    ld d,0
-    ld e,a
+    ld de,(dma_addr)
     ld bc,$80
     ld hl,buffer
     ldir
@@ -254,15 +252,13 @@ wait_for_data:
     ret
 write:
     ld bc,(sector)
-    ld (cmd_write_block + 4),bc
-    ld bc,(track)
     ld (cmd_write_block + 3),bc
-    ld a,(disk)
-    ld (cmd_write_block + 2),a
+    ld bc,(track)
+    ld (cmd_write_block + 1),bc
+    ; ld a,(disk)
+    ; ld (cmd_write_block + 2),a
 
-    ld a,(dma_addr)
-    ld h,0
-    ld l,a
+    ld hl,(dma_addr)
     ld bc,$80
     ld de,buffer
     ldir
@@ -301,7 +297,7 @@ sectran:
 disk: db 0
 track: dw 0
 sector dw 0
-dma_addr: db $80,80
+dma_addr: dw $0080
 
 dpblk:
     dw $FFFF    ; sectors per track
