@@ -42,6 +42,8 @@ wboote:
     jp sectran
 
 boot:
+    ld sp,$0080
+    call init_sd_card
     xor a
     ld (iobyte),a   ; set iobyte to 0
     ld (cdisk),a    ; set current disk to 0
@@ -218,14 +220,14 @@ setdma:
 read:
     ld bc,(sector)
     ld a,b
-    ld (cmd_read_block + 4),a
-    ld a,c
     ld (cmd_read_block + 3),a
+    ld a,c
+    ld (cmd_read_block + 4),a
     ld bc,(track)
     ld a,b
-    ld (cmd_read_block + 2),a
-    ld a,c
     ld (cmd_read_block + 1),a
+    ld a,c
+    ld (cmd_read_block + 2),a
     ; ld a,(disk)
     ; ld (cmd_read_block + 2),a
 
@@ -260,14 +262,14 @@ wait_for_data:
 write:
     ld bc,(sector)
     ld a,b
-    ld (cmd_write_block + 4),a
-    ld a,c
     ld (cmd_write_block + 3),a
+    ld a,c
+    ld (cmd_write_block + 4),a
     ld bc,(track)
     ld a,b
-    ld (cmd_write_block + 2),a
-    ld a,c
     ld (cmd_write_block + 1),a
+    ld a,c
+    ld (cmd_write_block + 2),a
     ; ld a,(disk)
     ; ld (cmd_write_block + 2),a
 
