@@ -108,10 +108,17 @@ init:
     call sd_write_a
     djnz init
 
+.block
+wait:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait
+.endblock
+
     sd_set_cs 0
 
     ld hl,cmd0
-    call sd_send_command
+    call sd_send_command_slow
     ld (response),a
 
     sd_set_cs 1
@@ -119,7 +126,7 @@ init:
     sd_set_cs 0
 
     ld hl,cmd8
-    call sd_send_command
+    call sd_send_command_slow
     ld (response),a
 
     ld b,4
@@ -133,10 +140,10 @@ init:
 send_acmd41:
     sd_set_cs 0
     ld hl,acmd
-    call sd_send_command
+    call sd_send_command_slow
 
     ld hl,acmd41
-    call sd_send_command
+    call sd_send_command_slow
     ld (response),a
 
     sd_set_cs 1
@@ -147,7 +154,7 @@ send_acmd41:
 
     sd_set_cs 0
     ld hl,cmd58
-    call sd_send_command
+    call sd_send_command_slow
 
     ld b,4
     ld hl,response
@@ -237,6 +244,12 @@ read:
 wait_for_data:
     ld a,$ff
     call sd_write_a
+.block
+wait:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait
+.endblock
     in a,(sd_data)
     cp $fe
     jp nz,wait_for_data
@@ -369,6 +382,19 @@ cmd_write_block:  ; write single block
     db $58,0,0,0,0,$01
 
 buffer: ds 512
+
+sd_send_command_slow:
+.block
+    ld b,6
+    ld c,sd_data
+send_loop:
+    ld a,(hl)
+    call sd_write_a
+    inc hl
+    djnz send_loop
+    call sd_read_response
+    ret
+.endblock
 
 sd_send_command:
 .block
