@@ -373,11 +373,9 @@ buffer: ds 512
 sd_send_command:
 .block
     ld b,6
+    ld c,sd_data
 send_loop:
-    ld a,(hl)
-    call sd_write_a
-    inc hl
-    djnz send_loop
+    otir
     call sd_read_response
     ret
 .endblock
