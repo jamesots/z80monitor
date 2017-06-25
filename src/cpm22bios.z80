@@ -43,16 +43,11 @@ wboote:
 
 boot:
     ld sp,$0080
-    ld c,9
-    ld de,startmsg
-    call bdos
     call init_sd_card
     xor a
     ld (iobyte),a   ; set iobyte to 0
     ld (cdisk),a    ; set current disk to 0
     jp gocpm
-startmsg:
-    db "Booting CP/M\n$"
 wboot:
     ; need to read nsects sectors from disk into ccp
     ld sp,$0080
@@ -222,14 +217,7 @@ setdma:
     ld (dma_addr),bc
     ret
 
-readmsg:
-    db "Reading\n$"
-finishedreadmsg:
-    db "Finished reading\n$"
 read:
-    ld de,readmsg
-    ld c,9
-    call bdos
     ld bc,(sector)
     ld a,b
     ld (cmd_read_block + 3),a
@@ -268,21 +256,10 @@ wait_for_data:
     ld hl,buffer
     ldir
 
-    ld de,finishedreadmsg
-    ld c,9
-    call bdos
-
     ld a,0  ; error code - should really check!!
 
     ret
-
-writemsg:
-    db "Writing\n$"
 write:
-    ld de,writemsg
-    ld c,9
-    call bdos
-
     ld bc,(sector)
     ld a,b
     ld (cmd_write_block + 3),a
