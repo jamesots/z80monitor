@@ -43,11 +43,16 @@ wboote:
 
 boot:
     ld sp,$0080
+    ld c,9
+    ld de,startmsg
+    call bdos
     call init_sd_card
     xor a
     ld (iobyte),a   ; set iobyte to 0
     ld (cdisk),a    ; set current disk to 0
     jp gocpm
+startmsg:
+    db "Booting CP/M\n$"
 wboot:
     ; need to read nsects sectors from disk into ccp
     ld sp,$0080
@@ -217,7 +222,14 @@ setdma:
     ld (dma_addr),bc
     ret
 
+readmsg:
+    db "Reading\n$"
+finishedreadmsg:
+    db "Finished reading\n$"
 read:
+    ld de,readmsg
+    ld c,9
+    call bdos
     ld bc,(sector)
     ld a,b
     ld (cmd_read_block + 3),a
@@ -256,10 +268,21 @@ wait_for_data:
     ld hl,buffer
     ldir
 
+    ld de,finishedreadmsg
+    ld c,9
+    call bdos
+
     ld a,0  ; error code - should really check!!
 
     ret
+
+writemsg:
+    db "Writing\n$"
 write:
+    ld de,writemsg
+    ld c,9
+    call bdos
+
     ld bc,(sector)
     ld a,b
     ld (cmd_write_block + 3),a
@@ -293,15 +316,17 @@ write:
     ld hl,buffer + $100
     call sd_write_bytes
 
-    call sd_read_response
+    call sd_read_data_response
     ld (response),a
 
+    call sd_wait_for_non_busy_token
     sd_set_cs 3
 
     ld a,0
 
     ret
 listst:
+    ld a,0
     ret
 
 sectran:
@@ -314,18 +339,32 @@ track: dw 0
 sector dw 0
 dma_addr: dw $0080
 
+; dpblk:
+;     dw $0030    ; SPT sectors per track
+;     db $05      ; BSH block shift factor
+;     db $1f      ; BLM block mask
+;     db $01      ; EXM extent mask
+;     dw $bfff    ; DSM disk size - 1
+;     dw $0200    ; DRM directory max
+;     db $f0      ; AL0 alloc 0
+;     db $00      ; AL1 alloc 1
+;     dw $0000    ; CKS check size - number of dir entries to check to see
+;                 ;     if disk has changed. Treat this as a fixed disk for now.
+;     dw $0001    ; OFF track offset - first track has OS on it
+;     ; disk size = 196608 Kb
 dpblk:
-    dw $FFFF    ; sectors per track
-    db 7        ; block shift factor
-    db 127      ; block mask
-    db 7        ; null mask
-    dw $FFFF    ; disk size - 1
-    dw $1000    ; directory max
-    db $ff        ; alloc 0
-    db $00        ; alloc 1
-    dw 0        ; check size - number of dir entries to check to see
-                ; if disk has changed. Treat this as a fixed disk for now.
-    dw 1        ; track offset - first track has OS on it
+    dw $001b    ; SPT sectors per track
+    db $03      ; BSH block shift factor
+    db $07      ; BLM block mask
+    db $100      ; EXM extent mask
+    dw $010d    ; DSM disk size - 1
+    dw $0080    ; DRM directory max
+    db $f0      ; AL0 alloc 0
+    db $00      ; AL1 alloc 1
+    dw $0000    ; CKS check size - number of dir entries to check to see
+                ;     if disk has changed. Treat this as a fixed disk for now.
+    dw $0002    ; OFF track offset - first track has OS on it
+    ; disk size = 270 Kb
 
 dpb_disk0:
     dw $0000,$0000
@@ -369,7 +408,7 @@ send_loop:
 sd_write_a:
     out (sd_data),a
     ; fall through to wait_for_ready
-sd_wait_for_ready:
+sd_wait_for_ready: ; waits until spi routine is no longer busy
     in a,(sd_status)
     bit 2,a
     jp nz,sd_wait_for_ready
@@ -395,12 +434,31 @@ sd_write_bytes:
     djnz sd_write_bytes
     ret
 
+; reads an r1 response
 sd_read_response:
     ld a,$ff
     call sd_write_a
     in a,(sd_data)
     bit 7,a
     jp nz,sd_read_response
+    ret
+
+; reads a data response
+sd_read_data_response:
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    and $11
+    cp 1
+    jp nz,sd_read_data_response
+    ret
+
+sd_wait_for_non_busy_token:
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    cp 0
+    jp z,sd_wait_for_non_busy_token
     ret
 
 dirbf: ds 128
@@ -418,5 +476,76 @@ test:
     call seldsk
     call read
     ret
+
+bell: equ 6
+bell_on: equ $ff
+bell_off: equ 0
+
+sound_bell:
+    push bc                     ; set up loop variables
+    ld bc,$0010
+    ld a,bell_on
+    out (bell),a                ; turn the bell on
+sound_bell1:
+    djnz sound_bell1            ; do the b loop
+    dec c
+    jp nz,sound_bell1           ; do the c loop
+    ld a,bell_off
+    out (bell),a                ; turn the bell off
+    pop bc
+    ret
+
+fill_disk:
+    ld hl,$9000
+    ld (hl),$e5
+    ld de,$9001
+    ld bc,512
+    ldir
+
+    ld bc,0
+    ld de,0
+fill_disk_next:
+    push bc
+    push de
+
+    ld (cmd_write_block + 1),de
+    ld (cmd_write_block + 3),bc
+
+    
+    sd_set_cs 2
+    ld hl,cmd_write_block
+    call sd_send_command
+
+    ld a,$fe  ; start block token
+    call sd_write_a
+
+    ld b,0
+    ld hl,$9000
+    call sd_write_bytes
+
+    ld b,0
+    ld hl,$9000
+    call sd_write_bytes
+
+    call sd_read_data_response
+    ld (response),a
+
+    call sd_wait_for_non_busy_token
+
+    sd_set_cs 3
+
+    pop de
+    pop bc
+    inc bc
+    xor a
+    cp b
+    jp nz,fill_disk_next
+    cp c
+    jp nz,fill_disk_next
+    inc de
+    cp d
+    jp nz,fill_disk_next
+    cp e
+    ret z
 
 end:

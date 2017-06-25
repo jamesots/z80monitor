@@ -1235,7 +1235,7 @@ PATTRN2:DEFB	0,22,0,0,0,0	;(* serial number bytes *).
 ;*                    B D O S   E N T R Y
 ;*
 ;**************************************************************
-;
+;ENTRY:
 FBASE:	JP	FBASE1
 ;
 ;   Bdos error table.
