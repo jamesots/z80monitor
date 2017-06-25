@@ -416,7 +416,7 @@ wait:
 ; hl = address of bytes to write
 sd_write_bytes:
     ld a,(hl)
-    call sd_write_a
+    out (sd_data),a
     inc hl
     djnz sd_write_bytes
     ret
