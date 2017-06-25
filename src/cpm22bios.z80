@@ -383,24 +383,34 @@ send_loop:
 .endblock
 
 sd_write_a:
-    out (sd_data),a
-    ; fall through to wait_for_ready
-sd_wait_for_ready: ; waits until spi routine is no longer busy
+.block
+    ex af,af'
+wait:
     in a,(sd_status)
     bit 2,a
-    jp nz,sd_wait_for_ready
+    jp nz,wait
+    ex af,af'
+    out (sd_data),a
     ret
+.endblock
 
 ; b = number of bytes to read
 ; hl = address to store bytes
 sd_read_bytes:
+.block
     ld a,$ff
     call sd_write_a
+wait:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait
+
     in a,(sd_data)
     ld (hl),a
     inc hl
     djnz sd_read_bytes
     ret
+.endblock
 
 ; b = number of bytes to write
 ; hl = address of bytes to write
@@ -413,30 +423,51 @@ sd_write_bytes:
 
 ; reads an r1 response
 sd_read_response:
+.block
     ld a,$ff
     call sd_write_a
+wait:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait
+
     in a,(sd_data)
     bit 7,a
     jp nz,sd_read_response
     ret
+.endblock
 
 ; reads a data response
 sd_read_data_response:
+.block
     ld a,$ff
     call sd_write_a
+wait:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait
+
     in a,(sd_data)
     and $11
     cp 1
     jp nz,sd_read_data_response
     ret
+.endblock
 
 sd_wait_for_non_busy_token:
+.block
     ld a,$ff
     call sd_write_a
+wait:
+    in a,(sd_status)
+    bit 2,a
+    jp nz,wait
+
     in a,(sd_data)
     cp 0
     jp z,sd_wait_for_non_busy_token
     ret
+.endblock
 
 dirbf: ds 128
 chk00: ds 16
@@ -485,9 +516,14 @@ fill_disk_next:
     push bc
     push de
 
-    ld (cmd_write_block + 1),de
-    ld (cmd_write_block + 3),bc
-
+    ld a,d
+    ld (cmd_write_block + 1),a
+    ld a,e
+    ld (cmd_write_block + 2),a
+    ld a,b
+    ld (cmd_write_block + 3),a
+    ld a,c
+    ld (cmd_write_block + 4),a
     
     sd_set_cs 2
     ld hl,cmd_write_block
