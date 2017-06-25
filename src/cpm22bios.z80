@@ -415,10 +415,8 @@ wait:
 ; b = number of bytes to write
 ; hl = address of bytes to write
 sd_write_bytes:
-    ld a,(hl)
-    out (sd_data),a
-    inc hl
-    djnz sd_write_bytes
+    ld c,sd_data
+    otir
     ret
 
 ; reads an r1 response
