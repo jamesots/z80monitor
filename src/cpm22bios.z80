@@ -334,32 +334,34 @@ track: dw 0
 sector dw 0
 dma_addr: dw $0080
 
-; dpblk:
-;     dw $0030    ; SPT sectors per track
-;     db $05      ; BSH block shift factor
-;     db $1f      ; BLM block mask
-;     db $01      ; EXM extent mask
-;     dw $bfff    ; DSM disk size - 1
-;     dw $0200    ; DRM directory max
-;     db $f0      ; AL0 alloc 0
-;     db $00      ; AL1 alloc 1
-;     dw $0000    ; CKS check size - number of dir entries to check to see
-;                 ;     if disk has changed. Treat this as a fixed disk for now.
-;     dw $0001    ; OFF track offset - first track has OS on it
-;     ; disk size = 196608 Kb
+;works
 dpblk:
-    dw $001b    ; SPT sectors per track
-    db $03      ; BSH block shift factor
-    db $07      ; BLM block mask
-    db $100      ; EXM extent mask
-    dw $010d    ; DSM disk size - 1
-    dw $0080    ; DRM directory max
+    dw $0100    ; SPT sectors per track
+    db $04      ; BSH block shift factor
+    db $0f      ; BLM block mask
+    db $00      ; EXM extent mask
+    dw $0fff    ; DSM disk size - 1
+    dw $0100    ; DRM directory max
     db $f0      ; AL0 alloc 0
     db $00      ; AL1 alloc 1
     dw $0000    ; CKS check size - number of dir entries to check to see
                 ;     if disk has changed. Treat this as a fixed disk for now.
-    dw $0002    ; OFF track offset - first track has OS on it
-    ; disk size = 270 Kb
+    dw $0001    ; OFF track offset - first track has OS on it
+    ; disk size = 8192 Kb
+; doesn't work
+; dpblk:
+;     dw $0100    ; SPT sectors per track
+;     db $04      ; BSH block shift factor
+;     db $0f      ; BLM block mask
+;     db $00      ; EXM extent mask
+;     dw $7fff    ; DSM disk size - 1
+;     dw $0100    ; DRM directory max
+;     db $f0      ; AL0 alloc 0
+;     db $00      ; AL1 alloc 1
+;     dw $0000    ; CKS check size - number of dir entries to check to see
+;                 ;     if disk has changed. Treat this as a fixed disk for now.
+;     dw $0002    ; OFF track offset - first track has OS on it
+;     ; disk size = 65536 Kb
 
 dpb_disk0:
     dw $0000,$0000
@@ -589,4 +591,13 @@ fill_disk_next:
     jp nz,fill_disk_next
     ret
 
+; Load memory at 8000 to 100 and then start CP/M
+; Then from CP/M you can do a SAVE nn filename
+; in order to save this data (up to 4Kb) into a file
+load_and_boot:
+    ld hl,$8000
+    ld de,$0100
+    ld bc,$4000
+    ldir
+    jp boot
 end:
