@@ -630,7 +630,7 @@ COMMAND:LD	SP,CCPSTACK	;setup stack area.
 CMMND1:	LD	SP,CCPSTACK	;set stack straight.
 	CALL	CRLF		;start a new line on the screen.
 	CALL	GETDSK		;get current drive.
-	ADD	A,'a'
+	ADD	A,'A'
 	CALL	PRINT		;print current drive.
 	LD	A,'>'
 	CALL	PRINT		;and add prompt.

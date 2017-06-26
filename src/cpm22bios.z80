@@ -48,9 +48,14 @@ boot:
     ld (iobyte),a   ; set iobyte to 0
     ld (cdisk),a    ; set current disk to 0
     jp gocpm
+bootmsg:
+    db "CP/M 2.2 62K\n$"
 wboot:
     ; need to read nsects sectors from disk into ccp
     ld sp,$0080
+    ld de,bootmsg
+    ld c,9
+    call bdos
     call init_sd_card
     ld c,0
     call seldsk     ; select drive A:
