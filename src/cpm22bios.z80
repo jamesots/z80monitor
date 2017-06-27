@@ -49,7 +49,7 @@ boot:
     ld (cdisk),a    ; set current disk to 0
     jp gocpm
 bootmsg:
-    db "CP/M 2.2 62K\n$"
+    db "\nCP/M 2.2 62K\n$"
 wboot:
     ; need to read nsects sectors from disk into ccp
     ld sp,$0080
@@ -68,8 +68,8 @@ load1:
     push bc         ; store count and track
     push de         ; store sector
     push hl         ; store destination
-    ld c,d
-    ld b,e
+    ld b,d
+    ld c,e
     call setsec     ; set sector to the current one
     pop bc          ; get destination in bc
     push bc
@@ -84,7 +84,7 @@ load1:
     pop bc          ; pop count and track
     dec b           ; decrement count
     jp z,gocpm      ; if all read, start cpm
-    inc d           ; increment sector
+    inc e           ; increment sector
     jp load1        ; load some more
 
 gocpm:
@@ -463,94 +463,94 @@ dirbf: ds 128
 chk00: ds 16
 all00: ds 31
 
-test:
-    ld bc,0
-    call settrk
-    ld bc,0
-    call setsec
-    ld bc,$9000
-    call setdma
-    ld c,0
-    call seldsk
-    call read
-    ret
+; test:
+;     ld bc,0
+;     call settrk
+;     ld bc,0
+;     call setsec
+;     ld bc,$9000
+;     call setdma
+;     ld c,0
+;     call seldsk
+;     call read
+;     ret
 
-bell: equ 6
-bell_on: equ $ff
-bell_off: equ 0
+; bell: equ 6
+; bell_on: equ $ff
+; bell_off: equ 0
 
-sound_bell:
-    push bc                     ; set up loop variables
-    ld bc,$0010
-    ld a,bell_on
-    out (bell),a                ; turn the bell on
-sound_bell1:
-    djnz sound_bell1            ; do the b loop
-    dec c
-    jp nz,sound_bell1           ; do the c loop
-    ld a,bell_off
-    out (bell),a                ; turn the bell off
-    pop bc
-    ret
+; sound_bell:
+;     push bc                     ; set up loop variables
+;     ld bc,$0010
+;     ld a,bell_on
+;     out (bell),a                ; turn the bell on
+; sound_bell1:
+;     djnz sound_bell1            ; do the b loop
+;     dec c
+;     jp nz,sound_bell1           ; do the c loop
+;     ld a,bell_off
+;     out (bell),a                ; turn the bell off
+;     pop bc
+;     ret
 
-fill_disk:
-    ld hl,$9000
-    ld (hl),$e5
-    ld de,$9001
-    ld bc,512
-    ldir
+; fill_disk:
+;     ld hl,$9000
+;     ld (hl),$e5
+;     ld de,$9001
+;     ld bc,512
+;     ldir
 
-    ld bc,0
-    ld de,0
-fill_disk_next:
-    push bc
-    push de
+;     ld bc,0
+;     ld de,0
+; fill_disk_next:
+;     push bc
+;     push de
 
-    ld a,d
-    ld (cmd_write_block + 1),a
-    ld a,e
-    ld (cmd_write_block + 2),a
-    ld a,b
-    ld (cmd_write_block + 3),a
-    ld a,c
-    ld (cmd_write_block + 4),a
+;     ld a,d
+;     ld (cmd_write_block + 1),a
+;     ld a,e
+;     ld (cmd_write_block + 2),a
+;     ld a,b
+;     ld (cmd_write_block + 3),a
+;     ld a,c
+;     ld (cmd_write_block + 4),a
     
-    sd_set_cs 2
-    ld hl,cmd_write_block
-    call sd_send_command
+;     sd_set_cs 2
+;     ld hl,cmd_write_block
+;     call sd_send_command
 
-    ld a,$fe  ; start block token
-    call sd_write_a
+;     ld a,$fe  ; start block token
+;     call sd_write_a
 
-    ld b,0
-    ld hl,$9000
-    call sd_write_bytes
+;     ld b,0
+;     ld hl,$9000
+;     call sd_write_bytes
 
-    ld b,0
-    ld hl,$9000
-    call sd_write_bytes
+;     ld b,0
+;     ld hl,$9000
+;     call sd_write_bytes
 
-    call sd_read_data_response
-    ld (response),a
+;     call sd_read_data_response
+;     ld (response),a
 
-    call sd_wait_for_non_busy_token
+;     call sd_wait_for_non_busy_token
 
-    sd_set_cs 3
+;     sd_set_cs 3
 
-    pop de
-    pop bc
-    inc bc
-    xor a
-    cp b
-    jp nz,fill_disk_next
-    cp c
-    jp nz,fill_disk_next
-    inc de
-    cp d
-    jp nz,fill_disk_next
-    cp e
-    jp nz,fill_disk_next
-    ret
+;     pop de
+;     pop bc
+;     inc bc
+;     xor a
+;     cp b
+;     jp nz,fill_disk_next
+;     cp c
+;     jp nz,fill_disk_next
+;     inc de
+;     cp d
+;     jp nz,fill_disk_next
+;     cp e
+;     jp nz,fill_disk_next
+;     ret
 
 ; Load memory at 8000 to 100 and then start CP/M
 ; Then from CP/M you can do a SAVE nn filename
