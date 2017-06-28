@@ -1242,7 +1242,7 @@ read_sd:
 
 wait_for_data:
     ld a,$ff
-    call sd_write_a
+    out (sd_data),a
     in a,(sd_data)
     cp $fe
     jp nz,wait_for_data
@@ -1258,11 +1258,10 @@ wait_for_data:
 
     sd_set_cs 3
     pop de
-    ld bc,$80
+    ld bc,$200
     ld hl,buffer
     ldir
     ret
-
 .endblock
 
 cmd_dump:
@@ -1560,7 +1559,7 @@ init_sd_card:
     ld b,10
 init:
     ld a,$ff
-    call sd_write_a
+    out (sd_data),a
     djnz init
 
     sd_set_cs 0
@@ -1617,7 +1616,7 @@ sd_send_command_slow:
     ld c,sd_data
 send_loop:
     ld a,(hl)
-    call sd_write_a
+    out (sd_data),a
     inc hl
     djnz send_loop
     call sd_read_response
@@ -1634,18 +1633,13 @@ send_loop:
     ret
 .endblock
 
-sd_write_a:
-.block
-    out (sd_data),a
-    ret
-.endblock
 
 ; b = number of bytes to read
 ; hl = address to store bytes
 sd_read_bytes:
 .block
     ld a,$ff
-    call sd_write_a
+    out (sd_data),a
     in a,(sd_data)
     ld (hl),a
     inc hl
@@ -1664,7 +1658,7 @@ sd_write_bytes:
 sd_read_response:
 .block
     ld a,$ff
-    call sd_write_a
+    out (sd_data),a
     in a,(sd_data)
     bit 7,a
     jp nz,sd_read_response
@@ -1675,7 +1669,7 @@ sd_read_response:
 sd_read_data_response:
 .block
     ld a,$ff
-    call sd_write_a
+    out (sd_data),a
     in a,(sd_data)
     and $11
     cp 1
@@ -1686,7 +1680,7 @@ sd_read_data_response:
 sd_wait_for_non_busy_token:
 .block
     ld a,$ff
-    call sd_write_a
+    out (sd_data),a
     in a,(sd_data)
     cp 0
     jp z,sd_wait_for_non_busy_token
