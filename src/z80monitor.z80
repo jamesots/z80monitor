@@ -1,6 +1,8 @@
 ft245: equ 8
 ft245_status: equ 9
 bell: equ 6
+sd_data: equ 10
+sd_status: equ 11
 
 chr_cr: equ 13
 chr_bs: equ 8
@@ -12,6 +14,11 @@ bell_off: equ 0
 
 comma: equ 0x2c ; ',' causes problems in asm80 parser
 semicolon: equ 0x3b ; ';' causes problems in asm80 parser
+
+.macro sd_set_cs
+    ld a,%%1
+    out (sd_status),a   ; set cs to 0
+.endm
 
 .phase 0
 start:
@@ -33,7 +40,6 @@ start:
     ld hl,boot_msg              ; write message
     call write_line
     call clear_input_buffer
-    call setup_buffers
 loop:
     ld a, '!'
     call write_char
@@ -395,6 +401,7 @@ help_msg: db 'Available commands:\n'
     db '  LOAD dest',comma,'dest\n'
     db '  PROTECT\n'
     db '  UNPROTECT\n'
+    db '  BOOT\n'
     db 0
 
 cmd_date:
@@ -1192,6 +1199,72 @@ error:
 error_msg: db 'Error\n',0
 .endblock
 
+cmd_boot:
+.block
+    call init_sd_card
+    ld de,$8000
+    ld hl,$0000
+    call read_sd
+    ld de,$8200
+    ld hl,$0100
+    call read_sd
+
+    ld hl,$83fe
+    ld a,$B0
+    cp (hl)
+    jp nz,noboot
+    inc hl
+    ld a,$07
+    jp nz,noboot
+    ld hl,boot_msg
+    call write_line
+    jp $8000
+noboot:
+    ld hl,noboot_msg
+    jp write_line
+noboot_msg: db 'Not a boot sector\n',0
+boot_msg: db 'Booting...\n',0
+.endblock
+
+; hl=sector (low bytes, backwards. High bytes always 0)
+;   backwards. i.e. hl=$0100 = sector 1.
+; de=destination
+read_sd:
+.block
+    push de
+    ld (cmd_read_block+3),hl
+    ld hl,0
+    ld (cmd_read_block+1),hl
+
+    sd_set_cs 2
+    ld hl,cmd_read_block
+    call sd_send_command
+
+wait_for_data:
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    cp $fe
+    jp nz,wait_for_data
+
+    ld b,0
+    ; ld hl,block0
+    ld hl,buffer
+    call sd_read_bytes
+    ld b,0
+    ; ld hl,block1
+    ld hl,buffer + $100
+    call sd_read_bytes
+
+    sd_set_cs 3
+    pop de
+    ld bc,$80
+    ld hl,buffer
+    ldir
+    ret
+
+.endblock
+
 cmd_dump:
 .block
     ld h,d
@@ -1457,29 +1530,174 @@ commands:
     djump cmd_unprotect
     db 'COMPARE'
     djump cmd_compare
+    db 'BOOT'
+    djump cmd_boot
     djump cmd_error
 
-setup_buffers:
-    ld de,timestr
-    ld hl,init_timestr
-    ld bc,init_end - init_timestr
-    ldir
+response: db 0, 0, 0, 0, 0
+
+cmd0:
+    db $40,0,0,0,0,$95
+cmd8:
+    db $48,0,0,1,$AA,$87    ; 2.7-3.6V
+acmd:
+    db $77,0,0,0,0,$01   ; cmd55 - next command is and acmd
+acmd41:
+    db $69,$40,0,0,0,$01
+cmd58:
+    db $7A,0,0,0,0,$01
+
+
+cmd_read_block:  ; read single block
+    db $51,0,0,0,0,$01      ; needs a data address
+cmd_write_block:  ; write single block
+    db $58,0,0,0,0,$01
+
+buffer: ds 512
+
+init_sd_card:
+    sd_set_cs 1
+    ld b,10
+init:
+    ld a,$ff
+    call sd_write_a
+    djnz init
+
+    sd_set_cs 0
+
+    ld hl,cmd0
+    call sd_send_command_slow
+    ld (response),a
+
+    sd_set_cs 1
+
+    sd_set_cs 0
+
+    ld hl,cmd8
+    call sd_send_command_slow
+    ld (response),a
+
+    ld b,4
+    ld hl,response
+    call sd_read_bytes
+
+    sd_set_cs 1
+
+    ; should check responses are correct, in proper sd card driver
+
+send_acmd41:
+    sd_set_cs 0
+    ld hl,acmd
+    call sd_send_command_slow
+
+    ld hl,acmd41
+    call sd_send_command_slow
+    ld (response),a
+
+    sd_set_cs 1
+
+    ld a,(response)
+    cp 0
+    jp nz,send_acmd41
+
+    sd_set_cs 0
+    ld hl,cmd58
+    call sd_send_command_slow
+
+    ld b,4
+    ld hl,response
+    call sd_read_bytes
+
+    sd_set_cs 1
     ret
-init_timestr: db 'TIME: 00:00:00\n', 0
-init_datestr: db 'DATE: 0000-00-00\n', 0
-init_hex_value: db '00\n',0
-init_dumpline: db '                                                                         ',0
-init_difference: db 'XXXX:XX XXXX:XX\n',0
-init_end: db 0
 
+sd_send_command_slow:
+.block
+    ld b,6
+    ld c,sd_data
+send_loop:
+    ld a,(hl)
+    call sd_write_a
+    inc hl
+    djnz send_loop
+    call sd_read_response
+    ret
+.endblock
 
-.phase $4000
+sd_send_command:
+.block
+    ld b,6
+    ld c,sd_data
+send_loop:
+    otir
+    call sd_read_response
+    ret
+.endblock
+
+sd_write_a:
+.block
+    out (sd_data),a
+    ret
+.endblock
+
+; b = number of bytes to read
+; hl = address to store bytes
+sd_read_bytes:
+.block
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    ld (hl),a
+    inc hl
+    djnz sd_read_bytes
+    ret
+.endblock
+
+; b = number of bytes to write
+; hl = address of bytes to write
+sd_write_bytes:
+    ld c,sd_data
+    otir
+    ret
+
+; reads an r1 response
+sd_read_response:
+.block
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    bit 7,a
+    jp nz,sd_read_response
+    ret
+.endblock
+
+; reads a data response
+sd_read_data_response:
+.block
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    and $11
+    cp 1
+    jp nz,sd_read_data_response
+    ret
+.endblock
+
+sd_wait_for_non_busy_token:
+.block
+    ld a,$ff
+    call sd_write_a
+    in a,(sd_data)
+    cp 0
+    jp z,sd_wait_for_non_busy_token
+    ret
+.endblock
+
 timestr: db 'TIME: 00:00:00\n', 0
 datestr: db 'DATE: 0000-00-00\n', 0
 hex_value: db '00\n',0
 dumpline: db '                                                                         ',0
 difference: db 'XXXX:XX XXXX:XX\n',0
-
 bcd_time: db 'xxx'
 bcd_date: db 'xxxx'
 line: ds 256
