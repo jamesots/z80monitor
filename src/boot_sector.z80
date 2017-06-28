@@ -1,0 +1,185 @@
+sd_data: equ 10
+sd_status: equ 11
+
+.macro sd_set_cs
+    ld a,%%1
+    out (sd_status),a   ; set cs to 0
+.endm
+
+.phase $8000
+    ld sp,$0000
+    call init_sd_card
+    ld b,14         ; number of sectors
+    ld de,$0002     ; start on sector 2, to skip the potential boot sectors
+    ld hl,$dc00     ; set destination to ccp
+load1:
+    push bc         ; store count and track
+    push de         ; store sector
+    push hl         ; store destination
+
+    call read_sd
+
+    pop hl          ; get destination again
+    ld de,512       ; add 1 sector
+    add hl,de
+    pop de          ; pop sector
+    pop bc          ; pop count and track
+    dec b           ; decrement count
+    jp z,$f200      ; if all read, start cpm
+    inc e           ; increment sector
+    jp load1        ; load some more
+
+init_sd_card:
+    sd_set_cs 1
+    ld b,10
+init:
+    ld a,$ff
+    out (sd_data),a
+    djnz init
+
+    sd_set_cs 0
+
+    ld hl,cmd0
+    call sd_send_command_slow
+    ld (response),a
+
+    sd_set_cs 1
+
+    sd_set_cs 0
+
+    ld hl,cmd8
+    call sd_send_command_slow
+    ld (response),a
+
+    ld b,4
+    ld hl,response
+    call sd_read_bytes
+
+    sd_set_cs 1
+
+    ; should check responses are correct, in proper sd card driver
+
+send_acmd41:
+    sd_set_cs 0
+    ld hl,acmd
+    call sd_send_command_slow
+
+    ld hl,acmd41
+    call sd_send_command_slow
+    ld (response),a
+
+    sd_set_cs 1
+
+    ld a,(response)
+    cp 0
+    jp nz,send_acmd41
+
+    sd_set_cs 0
+    ld hl,cmd58
+    call sd_send_command_slow
+
+    ld b,4
+    ld hl,response
+    call sd_read_bytes
+
+    sd_set_cs 1
+    ret
+
+sd_send_command_slow:
+.block
+    ld b,6
+    ld c,sd_data
+send_loop:
+    ld a,(hl)
+    out (sd_data),a
+    inc hl
+    djnz send_loop
+    call sd_read_response
+    ret
+.endblock
+
+; b = number of bytes to read
+; hl = address to store bytes
+sd_read_bytes:
+.block
+    ld a,$ff
+    out (sd_data),a
+    in a,(sd_data)
+    ld (hl),a
+    inc hl
+    djnz sd_read_bytes
+    ret
+.endblock
+
+; reads an r1 response
+sd_read_response:
+.block
+    ld a,$ff
+    out (sd_data),a
+    in a,(sd_data)
+    bit 7,a
+    jp nz,sd_read_response
+    ret
+.endblock
+
+; hl=sector (low bytes, backwards. High bytes always 0)
+;   backwards. i.e. hl=$0100 = sector 1.
+; de=destination
+read_sd:
+.block
+    push de
+    ld (cmd_read_block+3),hl
+    ld hl,0
+    ld (cmd_read_block+1),hl
+
+    sd_set_cs 2
+    ld hl,cmd_read_block
+    call sd_send_command_slow
+
+wait_for_data:
+    ld a,$ff
+    out (sd_data),a
+    in a,(sd_data)
+    cp $fe
+    jp nz,wait_for_data
+
+    ld b,0
+    ; ld hl,block0
+    ld hl,buffer
+    call sd_read_bytes
+    ld b,0
+    ; ld hl,block1
+    ld hl,buffer + $100
+    call sd_read_bytes
+
+    sd_set_cs 3
+    pop de
+    ld bc,$80
+    ld hl,buffer
+    ldir
+    ret
+.endblock
+
+response: db 0, 0, 0, 0, 0
+
+cmd0:
+    db $40,0,0,0,0,$95
+cmd8:
+    db $48,0,0,1,$AA,$87    ; 2.7-3.6V
+acmd:
+    db $77,0,0,0,0,$01   ; cmd55 - next command is and acmd
+acmd41:
+    db $69,$40,0,0,0,$01
+cmd58:
+    db $7A,0,0,0,0,$01
+
+
+cmd_read_block:  ; read single block
+    db $51,0,0,0,0,$01      ; needs a data address
+cmd_write_block:  ; write single block
+    db $58,0,0,0,0,$01
+
+buffer: ds 512
+
+.org $83FE
+    db $B0,07
