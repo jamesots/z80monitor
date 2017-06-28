@@ -10,6 +10,7 @@
     "sdcard": "zsm80 src/sdcard.z80 -t bin -o sdcard.bin",
     "cbios": "zsm80 src/cpm22bios.z80 -t bin -o cpm22bios.bin",
     "cpm": "zsm80 src/cpm22.z80 -t bin -o cpm22.bin",
+    "download": "zsm80 src/download.z80 -t bin -o download.com",
     "buildcpm": "npm run cbios && npm run cpm && ts-node src/size.ts",
     "boot": "zsm80 src/boot_sector.z80 -t bin -o boot_sector.bin"
   },
