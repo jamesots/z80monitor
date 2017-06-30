@@ -7,7 +7,6 @@ fcb: equ $5c
     ; run DOWNLOAD TOFILE.XXX HEXSIZE
 .phase $100
     ; command is at address command
-    
     ; if fcb is empty, print help
     ld a,(fcb + 1)
     cp " "
@@ -78,6 +77,7 @@ next_char:
 
     pop bc
     ld c,0  ; turn bc into pages (possibly 1 page too many)
+    srl b
     inc b
 
     ld hl,$1000
