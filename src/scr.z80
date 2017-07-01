@@ -53,7 +53,27 @@ spi_status: equ 11
 
     ld de,$0000
     call cursor_pos
-    ld c,'A'
+    ld c,'H'
+    call write_char
+
+    ld de,$0001
+    call cursor_pos
+    ld c,'e'
+    call write_char
+
+    ld de,$0002
+    call cursor_pos
+    ld c,'l'
+    call write_char
+
+    ld de,$0003
+    call cursor_pos
+    ld c,'l'
+    call write_char
+
+    ld de,$0004
+    call cursor_pos
+    ld c,'o'
     call write_char
     ret
 
@@ -88,7 +108,7 @@ inner:
 cursor_pos:
     push de
     ld h,0
-    ld l,d
+    ld l,e
     add hl,hl
     add hl,hl
     add hl,hl
@@ -104,7 +124,7 @@ cursor_pos:
     ld (set_addr_commands2 + 5),a
     pop de
     ld h,0
-    ld l,e
+    ld l,d
     add hl,hl
     add hl,hl
     add hl,hl
@@ -147,7 +167,7 @@ outer_loop:
     ld b,8
 char_loop:
     push af
-    bit 0,a
+    bit 7,a
     jp nz,fg
     call write_bg
     jp after_fg
@@ -155,7 +175,7 @@ fg:
     call write_fg
 after_fg:
     pop af
-    srl a
+    db $cb,$37 ; sll a
     djnz char_loop
     pop hl
     inc hl
@@ -236,10 +256,15 @@ commands:
     db 1, $c1, $10                      ; power control 2
     db 2, $c5, $3e, $28                 ; vcm control 1
     db 1, $c7, $86                      ; vcm control 2
-    db 1, $36, $48                      ; memory access control
+
+                                        ; MY=Row address order MX=Column address order 
+                                        ; MV=Row/Col exchange  ML=Vertical refresh order
+                                        ; MH=Horizonal refresh order
+                                        ; MY MX MV ML   BGR MH 0 0
+    db 1, $36, $c8                      ; memory access control  48=start in bottom right, portrait (100)
     db 1, $37, $00                      ; vertical scroll
     db 1, $3a, $55                      ; pixel format      16bpp
-    db 2, $b1, $00, $18                 ; frame control 1
+    db 2, $b1, $00, $18                 ; frame rate control 1
     db 3, $b6, $08, $82, $27            ; display function control
     db 1, $f2, $00                      ; gamma disable
     db 1, $26, $01                      ; gamma set
