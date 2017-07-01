@@ -1,0 +1,44 @@
+; JIM stands for Jim Isn't VIM And Isn't An Acronym Either But Is An Editor
+
+bdos: equ 5
+printstr: equ 9
+directio: equ 6
+ft245: equ 8
+
+.phase $100
+    ; ld hl,startmsg
+    ; call printstr_ftdi
+    ld de,startmsg
+    ld c,printstr
+    call bdos
+
+
+    jp 0
+
+; bc = how long to pause in approx milliseconds
+pause:
+.block
+outer:
+    ld de,$9a ; about a millisecond on a 10MHz machine
+inner:
+    dec de
+    ld a,d
+    or e
+    jp nz,inner
+    dec bc
+    ld a,b
+    or c
+    jp nz,outer
+    ret
+.endblock
+
+startmsg:
+    db $1b,"[2J"            ; clear screen
+    db $1b,"[H"             ; go home
+    db $1b,"[31;7m"         ; red text, reverse
+    db "JIM Editor                                                                      "
+    db $1b,"[0m\n$"          ; reset attributes
+
+linemap:
+    ds 5000*2
+memory:

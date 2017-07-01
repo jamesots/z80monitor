@@ -12,7 +12,9 @@
     "cpm": "zsm80 src/cpm22.z80 -t bin -o cpm22.bin",
     "download": "zsm80 src/download.z80 -t bin -o download.com",
     "buildcpm": "npm run cbios && npm run cpm && ts-node src/size.ts",
-    "boot": "zsm80 src/boot_sector.z80 -t bin -o boot_sector.bin"
+    "boot": "zsm80 src/boot_sector.z80 -t bin -o boot_sector.bin",
+    "scr": "zsm80 src/scr.z80 -t bin -o scr.bin && ts-node src/size.ts",
+    "jim": "zsm80 src/jim.z80 -t bin -o jim.com && ts-node src/size.ts"
   },
   "author": "James Ots <code@jamesots.com>",
   "license": "MIT",
