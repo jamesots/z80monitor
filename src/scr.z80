@@ -84,10 +84,22 @@ clear_screen:
     out (spi_data),a
     scr_data 0
 
-    ld de,320
+    ld de,80
 outer:
     ld b,240
 inner:
+    ld a,11111000b
+    out (spi_data),a
+    ld a,00000000b
+    out (spi_data),a
+    ld a,11111000b
+    out (spi_data),a
+    ld a,00000000b
+    out (spi_data),a
+    ld a,11111000b
+    out (spi_data),a
+    ld a,00000000b
+    out (spi_data),a
     ld a,11111000b
     out (spi_data),a
     ld a,00000000b
@@ -258,7 +270,7 @@ commands:
                                         ; MV=Row/Col exchange  ML=Vertical refresh order
                                         ; MH=Horizonal refresh order
                                         ; MY MX MV ML   BGR MH 0 0
-    db 1, $36, $c8                      ; memory access control  48=start in bottom right, portrait (100)
+    db 1, $36, $88                      ; memory access control  48=start in bottom right, portrait (100)
     db 1, $37, $00                      ; vertical scroll
     db 1, $3a, $55                      ; pixel format      16bpp
     db 2, $b1, $00, $18                 ; frame rate control 1
