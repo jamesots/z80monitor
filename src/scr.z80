@@ -4,18 +4,13 @@ bell: equ 6
 spi_data: equ 10
 spi_status: equ 11
 
-.macro spi_set_cs
-    ld a,%%1
-    out (spi_status),a   ; set cs to 0
-.endm
-
 .macro scr_cmd
-    ld a,00000111b
+    ld a,00000100b
     out (spi_status),a
 .endm
 
 .macro scr_data
-    ld a,00001111b
+    ld a,00001100b
     out (spi_status),a
 .endm
 
@@ -25,7 +20,7 @@ spi_status: equ 11
 .endm
 
 .macro scr_end
-    ld a,00000011b
+    ld a,00000000b
     out (spi_status),a
 .endm
 
