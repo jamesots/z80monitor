@@ -1,8 +1,8 @@
 ft245: equ 8
 ft245_status: equ 9
 bell: equ 6
-sd_data: equ 10
-sd_status: equ 11
+spi_data: equ 10
+spi_status: equ 11
 
 chr_cr: equ 13
 chr_bs: equ 8
@@ -15,9 +15,9 @@ bell_off: equ 0
 comma: equ 0x2c ; ',' causes problems in asm80 parser
 semicolon: equ 0x3b ; ';' causes problems in asm80 parser
 
-.macro sd_set_cs
+.macro spi_set_cs
     ld a,%%1
-    out (sd_status),a   ; set cs to 0
+    out (spi_status),a   ; set cs to 0
 .endm
 
 .phase 0
@@ -1236,14 +1236,14 @@ read_sd:
     ld hl,0
     ld (cmd_read_block+1),hl
 
-    sd_set_cs 2
+    spi_set_cs 2
     ld hl,cmd_read_block
     call sd_send_command
 
 wait_for_data:
     ld a,$ff
-    out (sd_data),a
-    in a,(sd_data)
+    out (spi_data),a
+    in a,(spi_data)
     cp $fe
     jp nz,wait_for_data
 
@@ -1256,7 +1256,7 @@ wait_for_data:
     ld hl,buffer + $100
     call sd_read_bytes
 
-    sd_set_cs 3
+    spi_set_cs 0
     pop de
     ld bc,$200
     ld hl,buffer
@@ -1555,22 +1555,22 @@ cmd_write_block:  ; write single block
 buffer: ds 512
 
 init_sd_card:
-    sd_set_cs 1
+    spi_set_cs 1
     ld b,10
 init:
     ld a,$ff
-    out (sd_data),a
+    out (spi_data),a
     djnz init
 
-    sd_set_cs 0
+    spi_set_cs 3
 
     ld hl,cmd0
     call sd_send_command_slow
     ld (response),a
 
-    sd_set_cs 1
+    spi_set_cs 1
 
-    sd_set_cs 0
+    spi_set_cs 3
 
     ld hl,cmd8
     call sd_send_command_slow
@@ -1580,12 +1580,12 @@ init:
     ld hl,response
     call sd_read_bytes
 
-    sd_set_cs 1
+    spi_set_cs 1
 
     ; should check responses are correct, in proper sd card driver
 
 send_acmd41:
-    sd_set_cs 0
+    spi_set_cs 3
     ld hl,acmd
     call sd_send_command_slow
 
@@ -1593,13 +1593,13 @@ send_acmd41:
     call sd_send_command_slow
     ld (response),a
 
-    sd_set_cs 1
+    spi_set_cs 1
 
     ld a,(response)
     cp 0
     jp nz,send_acmd41
 
-    sd_set_cs 0
+    spi_set_cs 3
     ld hl,cmd58
     call sd_send_command_slow
 
@@ -1607,16 +1607,16 @@ send_acmd41:
     ld hl,response
     call sd_read_bytes
 
-    sd_set_cs 1
+    spi_set_cs 1
     ret
 
 sd_send_command_slow:
 .block
     ld b,6
-    ld c,sd_data
+    ld c,spi_data
 send_loop:
     ld a,(hl)
-    out (sd_data),a
+    out (spi_data),a
     inc hl
     djnz send_loop
     call sd_read_response
@@ -1626,7 +1626,7 @@ send_loop:
 sd_send_command:
 .block
     ld b,6
-    ld c,sd_data
+    ld c,spi_data
 send_loop:
     otir
     call sd_read_response
@@ -1639,8 +1639,8 @@ send_loop:
 sd_read_bytes:
 .block
     ld a,$ff
-    out (sd_data),a
-    in a,(sd_data)
+    out (spi_data),a
+    in a,(spi_data)
     ld (hl),a
     inc hl
     djnz sd_read_bytes
@@ -1650,7 +1650,7 @@ sd_read_bytes:
 ; b = number of bytes to write
 ; hl = address of bytes to write
 sd_write_bytes:
-    ld c,sd_data
+    ld c,spi_data
     otir
     ret
 
@@ -1658,8 +1658,8 @@ sd_write_bytes:
 sd_read_response:
 .block
     ld a,$ff
-    out (sd_data),a
-    in a,(sd_data)
+    out (spi_data),a
+    in a,(spi_data)
     bit 7,a
     jp nz,sd_read_response
     ret
@@ -1669,8 +1669,8 @@ sd_read_response:
 sd_read_data_response:
 .block
     ld a,$ff
-    out (sd_data),a
-    in a,(sd_data)
+    out (spi_data),a
+    in a,(spi_data)
     and $11
     cp 1
     jp nz,sd_read_data_response
@@ -1680,8 +1680,8 @@ sd_read_data_response:
 sd_wait_for_non_busy_token:
 .block
     ld a,$ff
-    out (sd_data),a
-    in a,(sd_data)
+    out (spi_data),a
+    in a,(spi_data)
     cp 0
     jp z,sd_wait_for_non_busy_token
     ret

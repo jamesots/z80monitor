@@ -1,0 +1,17 @@
+Loading z80monitor
+switch board to boot from ftdi
+send bootstrap.bin
+
+!load 4000,ebe (or however big z80monitor.bin is - and send it)
+!unprotect
+!out 2,80
+!romcopy 4000,8000,4000
+!protect
+
+then switch board back to booting from rom
+
+Build cpm
+then 
+ts-node src/padding.ts (z80disk project)
+sudo dd if=cpm-with-bios.bin.padded of=/dev/sdh seek=2
+sudo dd if=../z80monitor/src/boot_sector.bin of=/dev/sdh

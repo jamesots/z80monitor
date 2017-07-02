@@ -113,7 +113,7 @@ init:
     out (sd_data),a
     djnz init
 
-    sd_set_cs 0
+    sd_set_cs 3
 
     ld hl,cmd0
     call sd_send_command_slow
@@ -121,7 +121,7 @@ init:
 
     sd_set_cs 1
 
-    sd_set_cs 0
+    sd_set_cs 3
 
     ld hl,cmd8
     call sd_send_command_slow
@@ -136,7 +136,7 @@ init:
     ; should check responses are correct, in proper sd card driver
 
 send_acmd41:
-    sd_set_cs 0
+    sd_set_cs 3
     ld hl,acmd
     call sd_send_command_slow
 
@@ -150,7 +150,7 @@ send_acmd41:
     cp 0
     jp nz,send_acmd41
 
-    sd_set_cs 0
+    sd_set_cs 3
     ld hl,cmd58
     call sd_send_command_slow
 
@@ -255,7 +255,7 @@ wait_for_data:
     ld hl,buffer + $100
     call sd_read_bytes
 
-    sd_set_cs 3
+    sd_set_cs 0
     ld de,(dma_addr)
     ld bc,$80
     ld hl,buffer
@@ -302,7 +302,7 @@ write:
     ld (response),a
 
     call sd_wait_for_non_busy_token
-    sd_set_cs 3
+    sd_set_cs 0
 
     ld a,0
 
@@ -529,7 +529,7 @@ all00: ds 31
 
 ;     call sd_wait_for_non_busy_token
 
-;     sd_set_cs 3
+;     sd_set_cs 0
 
 ;     pop de
 ;     pop bc
