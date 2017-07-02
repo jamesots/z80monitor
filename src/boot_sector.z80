@@ -1,7 +1,7 @@
 spi_data: equ 10
 spi_status: equ 11
 
-.macro sd_set_cs
+.macro spi_set_cs
     ld a,%%1
     out (spi_status),a   ; set cs to 0
 .endm
@@ -32,22 +32,22 @@ load1:
     jp load1        ; load some more
 
 init_sd_card:
-    sd_set_cs 1
+    spi_set_cs 1
     ld b,10
 init:
     ld a,$ff
     out (spi_data),a
     djnz init
 
-    sd_set_cs 3
+    spi_set_cs 3
 
     ld hl,cmd0
     call sd_send_command_slow
     ld (response),a
 
-    sd_set_cs 1
+    spi_set_cs 1
 
-    sd_set_cs 3
+    spi_set_cs 3
 
     ld hl,cmd8
     call sd_send_command_slow
@@ -57,12 +57,12 @@ init:
     ld hl,response
     call sd_read_bytes
 
-    sd_set_cs 1
+    spi_set_cs 1
 
     ; should check responses are correct, in proper sd card driver
 
 send_acmd41:
-    sd_set_cs 3
+    spi_set_cs 3
     ld hl,acmd
     call sd_send_command_slow
 
@@ -70,13 +70,13 @@ send_acmd41:
     call sd_send_command_slow
     ld (response),a
 
-    sd_set_cs 1
+    spi_set_cs 1
 
     ld a,(response)
     cp 0
     jp nz,send_acmd41
 
-    sd_set_cs 3
+    spi_set_cs 3
     ld hl,cmd58
     call sd_send_command_slow
 
@@ -84,7 +84,7 @@ send_acmd41:
     ld hl,response
     call sd_read_bytes
 
-    sd_set_cs 1
+    spi_set_cs 1
     ret
 
 sd_send_command_slow:
@@ -134,7 +134,7 @@ read_sd:
     ld hl,0
     ld (cmd_read_block+1),hl
 
-    sd_set_cs 2
+    spi_set_cs 2
     ld hl,cmd_read_block
     call sd_send_command_slow
 
@@ -154,7 +154,7 @@ wait_for_data:
     ld hl,buffer + $100
     call sd_read_bytes
 
-    sd_set_cs 0
+    spi_set_cs 0
     pop de
     ld bc,$80
     ld hl,buffer
