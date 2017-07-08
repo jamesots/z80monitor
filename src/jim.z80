@@ -1,9 +1,10 @@
-; JIM stands for Jim Isn't VIM And Isn't An Acronym Either But Is An Editor
+; JIM stands for Jim isn't vIM
 
 bdos: equ 5
 printstr: equ 9
 directio: equ 6
-ft245: equ 8
+
+maxlines: equ 5000
 
 .phase $100
     ; ld hl,startmsg
@@ -12,14 +13,43 @@ ft245: equ 8
     ld c,printstr
     call bdos
 
+;setup memory
+    ld hl,memory
+    ld (linemap),hl
+    ld hl,$0080
+    ld (memory),hl
+    ld a,$ff
+    ld (memory + 2),a
+    ld hl,"\r\n"
+    ld (memory + 3),a
+
+
+read:
+    ld c,directio
+    ld e,$ff
+    call bdos
+
+    cp 0
+    jp z,read
+
+    cp 3
+    jp z,0
+
+    ld e,a
+    ld c,directio
+    call bdos
+    jp read
 
     jp 0
+
+draw_screen:
+
 
 ; bc = how long to pause in approx milliseconds
 pause:
 .block
 outer:
-    ld de,$9a ; about a millisecond on a 10MHz machine
+    ld de,407 ; about a millisecond on a 10MHz machine
 inner:
     dec de
     ld a,d
@@ -39,6 +69,16 @@ startmsg:
     db "JIM Editor                                                                      "
     db $1b,"[0m\n$"          ; reset attributes
 
-linemap:
-    ds 5000*2
-memory:
+top_y:
+    dw 0
+cursor_x:
+    dw 0
+cursor_y:
+    dw 0
+
+linecount:
+    dw $0000
+linemap: equ linecount + 2
+memory: equ linemap + maxlines * 2
+
+

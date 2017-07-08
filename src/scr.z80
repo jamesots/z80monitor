@@ -70,6 +70,18 @@ spi_status: equ 11
     call cursor_pos
     ld c,'o'
     call write_char
+
+    ld de,210
+head_loop:
+    push de
+    ld bc,20
+    call head_pos
+    call draw_head
+    pop de
+    dec de
+    xor a
+    cp e
+    jp nz,head_loop
     ret
 
 clear_screen:
@@ -107,6 +119,54 @@ inner:
     jp nz,outer
     ret
 .endblock
+
+draw_head:
+    scr_cmd 0
+    ld a,$2c
+    out (spi_data),a
+    scr_data 0
+    ld hl,head
+    ld c,spi_data
+    ld b,0
+    otir
+    ld b,0
+    otir
+    ld b,0
+    otir
+    ld b,0
+    otir
+    ld b,80
+    otir
+    scr_end 0
+    ret
+
+; de=x
+; bc=y
+head_pos:
+    ld a,d
+    ld (set_addr_commands2 + 2),a
+    ld a,e
+    ld (set_addr_commands2 + 3),a
+    ld hl,23
+    add hl,de
+    ld a,h
+    ld (set_addr_commands2 + 4),a
+    ld a,l
+    ld (set_addr_commands2 + 5),a
+    ld a,b
+    ld (set_addr_commands2 + 8),a
+    ld a,c
+    ld (set_addr_commands2 + 9),a
+    ld hl,22
+    add hl,bc
+    ld a,h
+    ld (set_addr_commands2 + 10),a
+    ld a,l
+    ld (set_addr_commands2 + 11),a
+    ld hl,set_addr_commands2
+    call send_cmds
+    ret
+
 
 ; d=x e=y
 cursor_pos:
@@ -415,6 +475,39 @@ font:
     db 00110000b,00011000b,00011000b,00001100b,00011000b,00011000b,00110000b,00000000b ; 125 }
     db 01110110b,11011100b,00000000b,00000000b,00000000b,00000000b,00000000b,00000000b ; 126 ~
     db 00000000b,00000000b,00000000b,00000000b,00000000b,00000000b,00000000b,00000000b ; 127
+
+; red: 11111000b,00000000b = F800
+; black: 00000000b,00000000b = 0000 
+; white: 11111111b,11111111b = FFFF
+; green: 00000111b, 11100000b = 07E0
+r: equ $00F8
+B: equ $0000
+w: equ $FFFF
+g: equ $E007
+head:
+    dw r,r,r,r,r,r,r,r,r,B,B,B,B,B,B,B,r,r,r,r,r,r,r,r
+    dw r,r,r,r,r,r,r,B,B,B,w,w,w,w,w,B,B,B,r,r,r,r,r,r
+    dw r,r,r,r,r,r,B,B,w,w,w,w,w,w,w,w,w,B,B,r,r,r,r,r
+    dw r,r,r,r,r,r,B,w,w,w,w,w,w,w,w,w,w,w,B,B,r,r,r,r
+    dw r,r,r,r,r,B,B,w,B,B,w,w,w,w,w,w,w,w,w,B,r,r,r,r
+    dw r,r,r,r,r,B,w,w,w,w,w,B,B,w,w,w,w,w,w,B,B,r,r,r
+    dw r,r,r,B,B,B,w,w,w,w,w,w,w,B,w,w,w,w,w,w,B,r,r,r
+    dw r,r,B,B,w,w,w,w,B,w,w,w,w,w,w,w,w,w,w,w,B,r,r,r
+    dw r,B,B,w,B,B,B,w,B,w,w,B,w,w,w,w,w,w,w,w,B,r,r,r
+    dw r,B,w,B,B,B,B,B,w,w,w,B,w,w,w,w,w,w,w,w,B,B,r,r
+    dw r,B,w,B,B,B,B,B,w,w,w,w,w,w,w,w,w,w,w,B,g,B,B,B
+    dw r,B,w,B,B,B,B,B,B,w,w,w,w,w,w,w,w,w,w,B,g,g,g,B
+    dw r,B,w,B,B,B,B,B,w,B,w,w,w,w,w,w,w,w,w,w,B,g,B,B
+    dw r,B,B,w,B,B,B,B,B,B,w,w,w,w,w,w,B,w,w,w,B,g,B,r
+    dw B,B,g,w,B,B,B,B,B,B,w,w,B,w,w,w,B,w,w,w,B,g,B,B
+    dw B,g,g,g,w,w,B,B,w,w,w,w,B,B,w,w,w,B,w,w,w,B,g,B
+    dw B,g,g,g,g,B,w,w,B,B,B,B,w,w,w,w,B,w,w,w,w,B,B,B
+    dw B,B,g,g,B,B,B,w,w,w,w,w,w,w,B,B,w,w,w,w,B,B,r,r
+    dw r,B,B,B,B,r,B,B,B,w,w,w,w,B,g,g,B,w,w,B,g,B,r,r
+    dw r,r,r,r,r,r,r,r,B,B,B,B,B,g,g,g,g,w,B,g,g,B,r,r
+    dw r,r,r,r,r,r,r,r,r,r,r,r,B,g,g,B,g,B,g,B,B,B,r,r
+    dw r,r,r,r,r,r,r,r,r,r,r,r,B,B,g,g,B,B,B,B,r,r,r,r
+    dw r,r,r,r,r,r,r,r,r,r,r,r,r,B,B,B,B,r,r,r,r,r,r,r
 
 end:
 .dephase
