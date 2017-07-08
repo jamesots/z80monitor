@@ -15,3 +15,66 @@ then
 ts-node src/padding.ts (z80disk project)
 sudo dd if=cpm-with-bios.bin.padded of=/dev/sdh seek=2
 sudo dd if=../z80monitor/src/boot_sector.bin of=/dev/sdh
+
+
+
+-----
+
+JIM
+
+need a list of lines
+can easily insert into list by moving the list - even 5000 lines won't take long to move
+ldir = 21 cycles per byte
+105000 cycles, so about 1/100 second to insert a lines
+don't do word wrap
+80 chars per line to start with? - would allow 800 lines in 64Kb
+banked ram?
+biggest probelm is how to organize memory
+
+store in blocks which are 64 bytes?
+
+block size, in use, block
+
+list of lines:
+addr
+addr
+addr
+
+programme
+line map (allocate 5000?)
+blocks containing lines
+
+each block needs to know:
+    how big is it
+    is it in use
+    
+
+no need to store length of line - line is terminated by CRLF
+never shrink lines in memory (maybe a keypress to do it?)
+know where the current line is, how long it is, how far along cursor is
+
+completely driven by key press events
+character pressed: insert into line
+    if there's enough space in block:
+        move rest of chars along
+        add characters
+        insert characters on screen
+    if there isn't enough space
+        find bigger block
+        move text into new block
+        use code above 
+enter pressed: add a new line
+    move address in line map
+    insert blank line on screen
+delete pressed: at start of line
+    delete entry from line map (move other entries up)
+    copy line into block above (allocating new block if necessary)
+delete pressed: in line
+    remove char from line
+    remove char on screen
+ctrl-y: delete line
+
+functions:
+    insert char into block (&block, char)
+    find block (requested size)
+    
